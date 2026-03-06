@@ -2,7 +2,7 @@ import './App.css'
 
 function App() {
   return (
-    <>
+    <div className="page">
       <header className="header">
         <div className="header-inner">
           <a href="#" className="logo">
@@ -12,23 +12,39 @@ function App() {
           <nav className="nav">
             <a href="#how-it-works">How it works</a>
             <a href="#features">Features</a>
-            <a href="#try-it" className="nav-cta">Try it</a>
+            <a href="#try-it">Try it</a>
+            <span className="nav-divider" aria-hidden />
           </nav>
+          <a href="#try-it" className="btn-header">Sign Up Now</a>
         </div>
       </header>
 
-      <main>
+      <main className="main">
         <section className="hero">
-          <p className="hero-tagline">Turn meeting transcripts into done</p>
-          <h1 className="hero-title">
-            From meeting notes to done — automatically.
-          </h1>
-          <p className="hero-desc">
-            Extract structured action items from raw transcripts, normalize them into ready-to-run tool calls, and execute with one click. Emails, calendar events, Jira tasks, Slack messages, and Notion docs — powered by your choice of LLM (Gemini, Claude, or fully local with Ollama).
-          </p>
+          <p className="hero-badge">Turn meeting transcripts into done</p>
+          <div className="hero-content">
+            <h1 className="hero-title">
+              From meeting notes to done — automatically.
+            </h1>
+            <p className="hero-desc">
+              Extract structured action items from raw transcripts, normalize them into ready-to-run tool calls, and execute with one click. Emails, calendar events, Jira tasks, Slack messages, and Notion docs — powered by your choice of LLM (Gemini, Claude, or fully local with Ollama).
+            </p>
+          </div>
+          <div className="hero-cta">
+            <div className="hero-cta-row">
+              <input
+                type="email"
+                className="hero-input"
+                placeholder="Enter email"
+                aria-label="Email address"
+              />
+              <a href="#try-it" className="btn-header">Sign Up Now</a>
+            </div>
+            <p className="hero-hint">We care about your data. See our privacy policy.</p>
+          </div>
         </section>
 
-        <section className="value">
+        <section className="section value">
           <h2 className="section-title">Why it matters</h2>
           <ul className="value-list">
             <li>
@@ -43,7 +59,7 @@ function App() {
           </ul>
         </section>
 
-        <section id="how-it-works" className="steps">
+        <section id="how-it-works" className="section steps">
           <h2 className="section-title">How it works</h2>
           <ol className="steps-list">
             <li className="step">
@@ -70,7 +86,7 @@ function App() {
           </ol>
         </section>
 
-        <section id="features" className="features">
+        <section id="features" className="section features">
           <h2 className="section-title">Key features</h2>
           <ul className="features-list">
             <li className="feature-item">
@@ -96,7 +112,7 @@ function App() {
           </ul>
         </section>
 
-        <section className="audience">
+        <section className="section audience">
           <h2 className="section-title">For whom</h2>
           <div className="audience-cards">
             <div className="audience-card">
@@ -108,7 +124,7 @@ function App() {
           </div>
         </section>
 
-        <section id="try-it" className="cta">
+        <section id="try-it" className="section cta">
           <h2 className="section-title">Get started</h2>
           <div className="cta-cards">
             <div className="cta-card">
@@ -126,11 +142,10 @@ function App() {
       </main>
 
       <footer className="footer">
-        <div className="footer-inner">
-          <p className="footer-meta">Meeting Action Item Extractor — Extract · Normalize · Execute</p>
-        </div>
+        <span className="footer-logo">Meeting Action Extractor ®</span>
+        <p className="footer-tagline">Extract · Normalize · Execute</p>
       </footer>
-    </>
+    </div>
   )
 }
 

@@ -1,15 +1,26 @@
 :root {
-  --bg: #0c0f14;
-  --bg-elevated: #131820;
-  --bg-card: #181e28;
-  --text: #e6e9ef;
-  --text-muted: #8b92a0;
-  --accent: #3dd68c;
-  --accent-dim: rgba(61, 214, 140, 0.15);
-  --border: #2a3140;
-  --radius: 10px;
+  /* Figma design tokens from landing-page - 1 */
+  --bg: #1a1b1d;
+  --bg-gradient-start: #16181b;
+  --bg-gradient-end: #1c1e21;
+  --surface: rgba(32, 34, 36, 0.31);
+  --surface-solid: #232426;
+  --footer-bg: #141619;
+  --text: #f4f5f5;
+  --text-secondary: #fafafa;
+  --text-muted: #898a8c;
+  --text-hint: rgba(255, 255, 255, 0.41);
+  --placeholder: #aaaaaa;
+  --border: rgba(142, 142, 142, 0.24);
+  --border-gradient: linear-gradient(180deg, rgba(55, 57, 60, 1) 0%, rgba(55, 57, 60, 0) 100%);
+  --accent: #ff2976;
+  --accent-glow: rgba(180, 20, 90, 0.7);
+  --radius-sm: 12px;
+  --radius-pill: 500px;
+  --radius-frame: 16px;
   --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Syne', 'DM Sans', system-ui, sans-serif;
+  --font-body: 'Inter', 'DM Sans', system-ui, sans-serif;
 }
 
 *,
