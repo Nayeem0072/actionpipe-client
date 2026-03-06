@@ -1,26 +1,19 @@
 :root {
-  /* Figma design tokens from landing-page - 1 */
-  --bg: #1a1b1d;
-  --bg-gradient-start: #16181b;
-  --bg-gradient-end: #1c1e21;
-  --surface: rgba(32, 34, 36, 0.31);
-  --surface-solid: #232426;
-  --footer-bg: #141619;
-  --text: #f4f5f5;
-  --text-secondary: #fafafa;
-  --text-muted: #898a8c;
-  --text-hint: rgba(255, 255, 255, 0.41);
-  --placeholder: #aaaaaa;
-  --border: rgba(142, 142, 142, 0.24);
-  --border-gradient: linear-gradient(180deg, rgba(55, 57, 60, 1) 0%, rgba(55, 57, 60, 0) 100%);
-  --accent: #ff2976;
-  --accent-glow: rgba(180, 20, 90, 0.7);
-  --radius-sm: 12px;
-  --radius-pill: 500px;
-  --radius-frame: 16px;
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Syne', 'DM Sans', system-ui, sans-serif;
-  --font-body: 'Inter', 'DM Sans', system-ui, sans-serif;
+  /* Page 3 — Raycast-style (Figma landing-page - 1, Page 3) */
+  --bg: #05010d;
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-tertiary: rgba(255, 255, 255, 0.4);
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-glass: rgba(255, 255, 255, 0.1);
+  --btn-primary-bg: rgba(255, 255, 255, 0.9);
+  --btn-primary-text: #0d0d0d;
+  --btn-primary-stroke: rgba(255, 255, 255, 0.3);
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #78d9cb;
+  --radius: 12px;
+  --radius-btn: 8px;
+  --font: 'Noto Sans Khmer', system-ui, sans-serif;
 }
 
 *,
@@ -35,7 +28,7 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;

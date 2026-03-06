@@ -1,6 +1,6 @@
-# Meeting Action Item Extractor — Landing Page
+# ActionPipe — Landing Page
 
-Landing page for the Meeting Action Item Extractor: turn meeting transcripts into structured actions, normalize to tool calls, and execute with one click.
+Landing page for ActionPipe: turn meeting transcripts into structured actions, normalize to tool calls, and execute with one click.
 
 ## Run locally
 
