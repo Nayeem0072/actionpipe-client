@@ -522,7 +522,8 @@
 
 .section-title {
   font-family: var(--font);
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  /* font-size: clamp(1.25rem, 2.5vw, 1.5rem); */
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
   font-weight: 700;
   line-height: 1.2;
   margin: 0 0 12px;
@@ -1188,6 +1189,80 @@
 }
 
 /* Actions page — upload form and pipeline agent cards */
+.actions-step-progress {
+  margin-bottom: 50px;
+}
+
+.actions-step-progress-list {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+}
+
+.actions-step-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.actions-step-progress-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.actions-step-progress-item.is-active .actions-step-progress-marker {
+  background: rgba(120, 217, 203, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.actions-step-progress-item.is-complete .actions-step-progress-marker {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.actions-step-progress-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.actions-step-progress-item.is-active .actions-step-progress-label {
+  color: var(--accent);
+}
+
+.actions-step-progress-item.is-complete .actions-step-progress-label {
+  color: var(--text);
+}
+
+.actions-step-progress-connector {
+  width: 40px;
+  height: 2px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.actions-step-progress-connector.is-complete {
+  background: var(--accent);
+}
+
 .actions-upload-section .section-desc {
   margin-bottom: 24px;
 }
@@ -1291,7 +1366,7 @@
 }
 
 .actions-file-input {
-  padding: 12px 14px;
+  padding: 7px 14px;
   font-family: var(--font);
   font-size: 14px;
   color: var(--text-muted);
@@ -1302,10 +1377,10 @@
 }
 
 .actions-file-input::file-selector-button {
-  margin-right: 12px;
-  padding: 6px 12px;
+  margin-right: 10px;
+  padding: 4px 8px;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
   background: var(--surface-glass);
   border: 1px solid var(--border);
@@ -1331,6 +1406,12 @@
 
 .actions-upload-actions {
   padding-top: 4px;
+}
+
+.actions-run-error {
+  color: var(--error, #c00);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
 }
 
 .actions-pipeline-header {

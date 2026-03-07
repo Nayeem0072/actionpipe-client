@@ -138,7 +138,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
 
       <main className="main">
         <section className="section value">
-          <h2 className="section-title">Why it matters</h2>
+          <h2 className="section-title">Why It Matters</h2>
           <ul className="value-list">
             <li>
               <strong>No manual triage</strong> — The pipeline finds actions, assigns tools, resolves "who" and "where" from your contact graph, and can run them via MCP or your own APIs.
@@ -153,7 +153,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
         </section>
 
         <section id="how-it-works" className="section steps">
-          <h2 className="section-title">How it works</h2>
+          <h2 className="section-title">How It Works</h2>
           <ol className="steps-list">
             <li className="step">
               <span className="step-num">1</span>
@@ -180,7 +180,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
         </section>
 
         <section id="features" className="section ecosystem">
-          <h2 className="ecosystem-title">Keeping the pipeline powerful</h2>
+          <h2 className="ecosystem-title">Keeping the Pipeline Powerful</h2>
           <div className="ecosystem-grid">
             <div className="ecosystem-card">
               <div className="icon" aria-hidden>
@@ -214,7 +214,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
         </section>
 
         <section className="section audience">
-          <h2 className="section-title">For whom</h2>
+          <h2 className="section-title">For Whom</h2>
           <div className="audience-cards">
             <div className="ecosystem-card">
               <h4>Teams</h4>
@@ -232,7 +232,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
         </section>
 
         <section id="try-it" className="section cta">
-          <h2 className="section-title">Get started</h2>
+          <h2 className="section-title">Get Started</h2>
           <p className="section-desc">Clone the repo, set your provider and API key, then run extractor → normalizer → executor. Dry-run by default.</p>
           <div className="cta-cards">
             <div className="ecosystem-card">

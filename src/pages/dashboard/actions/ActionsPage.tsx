@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { DashboardSidebar } from '../../../components/DashboardSidebar'
+import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
+import type { ProgressData, StepDoneData, AgentDoneData, ErrorData } from '../../../api/runs'
 
 type StepStatus = 'pending' | 'done' | 'ongoing'
 
@@ -21,10 +23,13 @@ interface AgentCardState {
 
 const INITIAL_EXTRACTOR_STEPS: WorkingStep[] = [
   { id: '1', label: 'Load transcript', status: 'pending' },
-  { id: '2', label: 'Split into chunks', status: 'pending' },
-  { id: '3', label: 'Process chunks', status: 'pending', current: 0, total: 11 },
-  { id: '4', label: 'Extract action items', status: 'pending' },
-  { id: '5', label: 'Write raw actions', status: 'pending' },
+  { id: '2', label: 'Segment (split into chunks)', status: 'pending' },
+  { id: '3', label: 'Chunks', status: 'pending' },
+  { id: '4', label: 'Parallel extract (per chunk)', status: 'pending' },
+  { id: '5', label: 'Evidence normalizer', status: 'pending' },
+  { id: '6', label: 'Cross-chunk resolver', status: 'pending' },
+  { id: '7', label: 'Global deduplicator', status: 'pending' },
+  { id: '8', label: 'Action finalizer', status: 'pending' },
 ]
 
 const INITIAL_NORMALIZER_STEPS: WorkingStep[] = [
@@ -52,13 +57,28 @@ function buildAgentState(
   ]
 }
 
+// Map backend step names to our extractor step indices (0–7)
+const EXTRACTOR_STEP_INDEX: Record<string, number> = {
+  load_transcript: 0,
+  segmenter: 1,
+  chunks: 2,
+  parallel_extractor: 3,
+  evidence_normalizer: 4,
+  cross_chunk_resolver: 5,
+  global_deduplicator: 6,
+  action_finalizer: 7,
+}
+
 export function ActionsPage() {
   const { user, isLoading } = useAuth0()
   const navigate = useNavigate()
   const [step, setStep] = useState<'upload' | 'pipeline'>('upload')
   const [file, setFile] = useState<File | null>(null)
+  const [uploadFormKey, setUploadFormKey] = useState(0)
   const [meetingDate, setMeetingDate] = useState('')
   const [language, setLanguage] = useState('en')
+  const [runError, setRunError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [agents, setAgents] = useState<AgentCardState[]>(() =>
     buildAgentState(
       INITIAL_EXTRACTOR_STEPS,
@@ -66,6 +86,7 @@ export function ActionsPage() {
       INITIAL_EXECUTOR_STEPS
     )
   )
+  const unsubscribeStreamRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -73,62 +94,120 @@ export function ActionsPage() {
     }
   }, [isLoading, user, navigate])
 
-  // Simulate pipeline: advance through extractor → normalizer → executor
-  useEffect(() => {
-    if (step !== 'pipeline') return
+  // Apply SSE stream events to agent steps (extractor only for now)
+  const applyProgress = (data: ProgressData) => {
+    if (data.agent !== 'extractor') return
+    const idx = EXTRACTOR_STEP_INDEX[data.step]
+    if (idx === undefined) return
+    setAgents((prev) =>
+      prev.map((a) => {
+        if (a.id !== 'extractor') return a
+        const steps = a.steps.map((s, i) => {
+          if (i === idx) {
+            return {
+              ...s,
+              status: 'ongoing' as const,
+              ...(data.current != null && { current: data.current }),
+              ...(data.total != null && { total: data.total }),
+            }
+          }
+          // When parallel_extractor (or any step) gets progress, mark all previous
+          // steps done so we never show e.g. "Parallel extract" active before "Chunks"
+          if (i < idx && s.status !== 'done') {
+            return { ...s, status: 'done' as const }
+          }
+          return s
+        })
+        return { ...a, steps }
+      })
+    )
+  }
 
-    const extractorSequence: { at: number; update: (s: WorkingStep[]) => WorkingStep[] }[] = [
-      { at: 0, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 400, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'done' as const } : i === 1 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 800, update: (s) => s.map((x, i) => (i === 1 ? { ...x, status: 'done' as const } : i === 2 ? { ...x, status: 'ongoing' as const, current: 0, total: 11 } : x)) },
-      { at: 1200, update: (s) => s.map((x, i) => (i === 2 ? { ...x, current: 3, total: 11 } : x)) },
-      { at: 1600, update: (s) => s.map((x, i) => (i === 2 ? { ...x, current: 6, total: 11 } : x)) },
-      { at: 2000, update: (s) => s.map((x, i) => (i === 2 ? { ...x, current: 11, total: 11, status: 'done' as const } : i === 3 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 2600, update: (s) => s.map((x, i) => (i === 3 ? { ...x, status: 'done' as const } : i === 4 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 3200, update: (s) => s.map((x, i) => (i === 4 ? { ...x, status: 'done' as const } : x)) },
-    ]
+  const applyStepDone = (data: StepDoneData) => {
+    if (data.agent !== 'extractor') return
+    const idx = EXTRACTOR_STEP_INDEX[data.step]
+    if (idx === undefined) return
+    setAgents((prev) =>
+      prev.map((a) => {
+        if (a.id !== 'extractor') return a
+        const extractorSteps = a.steps
+        const allPreviousDone = extractorSteps
+          .slice(0, idx)
+          .every((s) => s.status === 'done')
+        if (!allPreviousDone) return a
+        return {
+          ...a,
+          steps: extractorSteps.map((s, i) =>
+            i === idx ? { ...s, status: 'done' as const } : s
+          ),
+        }
+      })
+    )
+  }
 
-    const normalizerSequence: { at: number; update: (s: WorkingStep[]) => WorkingStep[] }[] = [
-      { at: 3500, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 4000, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'done' as const } : i === 1 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 4800, update: (s) => s.map((x, i) => (i === 1 ? { ...x, status: 'done' as const } : i === 2 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 5600, update: (s) => s.map((x, i) => (i === 2 ? { ...x, status: 'done' as const } : i === 3 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 6200, update: (s) => s.map((x, i) => (i === 3 ? { ...x, status: 'done' as const } : x)) },
-    ]
+  const applyAgentDone = (data: AgentDoneData) => {
+    if (data.agent !== 'extractor') return
+    setAgents((prev) =>
+      prev.map((a) =>
+        a.id === 'extractor'
+          ? {
+              ...a,
+              steps: a.steps.map((s) =>
+                s.status !== 'done' ? { ...s, status: 'done' as const } : s
+              ),
+            }
+          : a
+      )
+    )
+  }
 
-    const executorSequence: { at: number; update: (s: WorkingStep[]) => WorkingStep[] }[] = [
-      { at: 6600, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 7200, update: (s) => s.map((x, i) => (i === 0 ? { ...x, status: 'done' as const } : i === 1 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 8000, update: (s) => s.map((x, i) => (i === 1 ? { ...x, status: 'done' as const } : i === 2 ? { ...x, status: 'ongoing' as const } : x)) },
-      { at: 8600, update: (s) => s.map((x, i) => (i === 2 ? { ...x, status: 'done' as const } : x)) },
-    ]
-
-    const allDelays = [
-      ...extractorSequence.map((e) => ({ agent: 'extractor' as const, ...e })),
-      ...normalizerSequence.map((e) => ({ agent: 'normalizer' as const, ...e })),
-      ...executorSequence.map((e) => ({ agent: 'executor' as const, ...e })),
-    ].sort((a, b) => a.at - b.at)
-
-    const timers: ReturnType<typeof setTimeout>[] = []
-    allDelays.forEach(({ at, agent, update }) => {
-      const t = setTimeout(() => {
-        setAgents((prev) =>
-          prev.map((a) =>
-            a.id === agent ? { ...a, steps: update(a.steps) } : a
-          )
-        )
-      }, at)
-      timers.push(t)
-    })
-    return () => timers.forEach(clearTimeout)
-  }, [step])
-
-  const handleNext = () => {
-    setStep('pipeline')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!file) return
+    setRunError(null)
+    setIsSubmitting(true)
+    try {
+      const { runId } = await createRun({
+        file,
+        meetingDate: meetingDate || undefined,
+        language: language || undefined,
+      })
+      setStep('pipeline')
+      const unsubscribe = subscribeToRunStream(runId, {
+        onProgress: applyProgress,
+        onStepDone: applyStepDone,
+        onAgentDone: applyAgentDone,
+        onRunComplete: () => {
+          unsubscribeStreamRef.current = null
+        },
+        onError: (data: ErrorData) => {
+          setRunError(data.message || 'Pipeline error')
+          unsubscribeStreamRef.current = null
+        },
+      })
+      unsubscribeStreamRef.current = unsubscribe
+    } catch (err) {
+      const message =
+        err instanceof RunApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to start run'
+      setRunError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleBack = () => {
+    if (unsubscribeStreamRef.current) {
+      unsubscribeStreamRef.current()
+      unsubscribeStreamRef.current = null
+    }
     setStep('upload')
+    setFile(null)
+    setRunError(null)
+    setUploadFormKey((k) => k + 1)
     setAgents(
       buildAgentState(
         INITIAL_EXTRACTOR_STEPS,
@@ -137,6 +216,9 @@ export function ActionsPage() {
       )
     )
   }
+
+  const pipelineComplete = step === 'pipeline' && agents.every((a) => a.steps.every((s) => s.status === 'done'))
+  const activeStepNumber = step === 'upload' ? 1 : pipelineComplete ? 3 : 2
 
   if (isLoading || !user) {
     return (
@@ -157,16 +239,31 @@ export function ActionsPage() {
           </p>
         </header>
         <div className="dashboard-main-content">
+          <nav className="actions-step-progress" aria-label="Progress">
+            <ol className="actions-step-progress-list">
+              <li className={`actions-step-progress-item ${activeStepNumber >= 1 ? 'is-active' : ''} ${activeStepNumber > 1 ? 'is-complete' : ''}`}>
+                <span className="actions-step-progress-marker">1</span>
+                <span className="actions-step-progress-label">Upload & details</span>
+              </li>
+              <li className={`actions-step-progress-connector ${activeStepNumber > 1 ? 'is-complete' : ''}`} aria-hidden />
+              <li className={`actions-step-progress-item ${activeStepNumber >= 2 ? 'is-active' : ''} ${activeStepNumber > 2 ? 'is-complete' : ''}`}>
+                <span className="actions-step-progress-marker">2</span>
+                <span className="actions-step-progress-label">Pipeline</span>
+              </li>
+              <li className={`actions-step-progress-connector ${activeStepNumber > 2 ? 'is-complete' : ''}`} aria-hidden />
+              <li className={`actions-step-progress-item ${activeStepNumber >= 3 ? 'is-active' : ''} ${activeStepNumber > 3 ? 'is-complete' : ''}`}>
+                <span className="actions-step-progress-marker">3</span>
+                <span className="actions-step-progress-label">Complete</span>
+              </li>
+            </ol>
+          </nav>
           {step === 'upload' ? (
             <section className="section actions-upload-section">
-              <h2 className="section-title">New run</h2>
+              <h2 className="section-title">New Run</h2>
               <p className="section-desc">Select a meeting transcript and provide details. Then start the pipeline.</p>
               <form
                 className="actions-upload-form"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleNext()
-                }}
+                onSubmit={handleSubmit}
               >
                 <div className="actions-upload-cards">
                   <div className="actions-upload-card ecosystem-card">
@@ -176,6 +273,7 @@ export function ActionsPage() {
                       <input
                         id="actions-file"
                         type="file"
+                        key={uploadFormKey}
                         accept=".txt,.csv,.pdf,.doc,text/plain,text/csv,application/pdf,application/msword"
                         className="actions-file-input"
                         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -198,7 +296,6 @@ export function ActionsPage() {
                           className="actions-input"
                           value={meetingDate}
                           onChange={(e) => setMeetingDate(e.target.value)}
-                          required
                         />
                       </div>
                       <div className="actions-form-group">
@@ -220,8 +317,17 @@ export function ActionsPage() {
                   </div>
                 </div>
                 <div className="actions-upload-actions">
-                  <button type="submit" className="btn btn-primary">
-                    Next — Start pipeline
+                  {runError && (
+                    <p className="actions-run-error" role="alert">
+                      {runError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Starting…' : 'Next — Start pipeline'}
                   </button>
                 </div>
               </form>
@@ -229,8 +335,13 @@ export function ActionsPage() {
           ) : (
             <section className="section actions-pipeline-section">
               <div className="actions-pipeline-header">
-                <h2 className="section-title">Pipeline run</h2>
+                <h2 className="section-title">Pipeline Run</h2>
                 <p className="section-desc">Agents run in order: Extractor → Normalizer → Executor.</p>
+                {runError && (
+                  <p className="actions-run-error" role="alert">
+                    {runError}
+                  </p>
+                )}
                 <button type="button" className="btn btn-secondary" onClick={handleBack}>
                   Back to upload
                 </button>
@@ -272,7 +383,7 @@ function AgentCard({ agent }: { agent: AgentCardState }) {
             <StepIcon status={s.status} />
             <span className="actions-agent-step-label">
               {s.label}
-              {s.status === 'ongoing' && s.total != null && (
+              {s.status === 'ongoing' && s.total != null && s.total > 0 && (
                 <span className="actions-agent-step-progress">
                   {' '}
                   — {s.current ?? 0}/{s.total}
