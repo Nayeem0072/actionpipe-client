@@ -95,9 +95,18 @@ function SearchIcon({ className }: { className?: string }) {
 
 export function DashboardSidebar() {
   const [search, setSearch] = useState('')
-  const [expandedId, setExpandedId] = useState<string | null>('dashboard')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['dashboard']))
   const { user, logout } = useAuth0()
   const location = useLocation()
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const isActive = (href: string, activeMatch?: string) => {
     const path = location.pathname
@@ -141,7 +150,7 @@ export function DashboardSidebar() {
         <nav className="dashboard-sidebar-nav">
           {sidebarNav.map((item) => {
             const hasChildren = 'children' in item && item.children?.length
-            const isExpanded = expandedId === item.id
+            const isExpanded = expandedIds.has(item.id)
             const isParentActive =
               (item.href === '/dashboard' && location.pathname.startsWith('/dashboard')) ||
               (item.id === 'features' && location.pathname.startsWith('/dashboard/actions')) ||
@@ -153,7 +162,7 @@ export function DashboardSidebar() {
                   <button
                     type="button"
                     className={`dashboard-sidebar-link dashboard-sidebar-link-parent ${isParentActive ? 'is-active' : ''}`}
-                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                    onClick={() => toggleExpanded(item.id)}
                     aria-expanded={isExpanded}
                   >
                     <span className="dashboard-sidebar-link-bg" />
