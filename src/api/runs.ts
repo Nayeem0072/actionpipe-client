@@ -73,6 +73,19 @@ export interface AgentDoneData {
   agent: StreamAgent
 }
 
+/** One action sent to the executor; included in run_complete.executor_actions */
+export interface ExecutorAction {
+  id: string
+  tool_type: string
+  server: string
+  mcp_tool: string
+  params: Record<string, unknown>
+  status: 'success' | 'dry_run' | 'skipped' | 'error'
+  response: Record<string, unknown> | null
+  error: string | null
+  labels?: string[]
+}
+
 export interface RunCompleteData {
   summary?: {
     actions_extracted?: number
@@ -80,6 +93,7 @@ export interface RunCompleteData {
     actions_executed?: number
     [key: string]: unknown
   }
+  executor_actions?: ExecutorAction[]
 }
 
 export interface ErrorData {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { DashboardSidebar } from '../../../components/DashboardSidebar'
 import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
-import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData } from '../../../api/runs'
+import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData, ExecutorAction } from '../../../api/runs'
 
 type StepStatus = 'pending' | 'done' | 'ongoing'
 
@@ -82,10 +82,166 @@ const EXECUTOR_STEP_INDEX: Record<string, number> = {
   mcp_dispatcher: 1,
 }
 
+/** Human-readable label for tool_type (e.g. send_email → "Send email") */
+function formatToolTypeLabel(toolType: string): string {
+  return toolType
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/** Human-readable label for param/label keys (e.g. due_date → "Due Date") */
+function formatLabelKey(key: string): string {
+  return key
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/** Renders a param value in a readable way (e.g. participants as a list of "Name (email)") */
+function ParamValue({ value }: { value: unknown }) {
+  if (value === null || value === undefined) return <span className="actions-executor-param-na">N/A</span>
+  if (typeof value === 'string') {
+    if (value.trim() === '') return <span className="actions-executor-param-na">N/A</span>
+    return <>{value}</>
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return <>{String(value)}</>
+  if (Array.isArray(value)) {
+    const hasNameEmail =
+      value.length > 0 &&
+      value.every(
+        (item) =>
+          item &&
+          typeof item === 'object' &&
+          'name' in item &&
+          'email' in item
+      )
+    if (hasNameEmail) {
+      const list = value as Array<{ name?: string; email?: string }>
+      return (
+        <span className="actions-executor-participants">
+          {list.map((p, i) => (
+            <span key={i}>
+              {i > 0 && ', '}
+              {p.name}
+              {p.email ? (
+                <>
+                  {' '}
+                  <em className="actions-executor-participants-email">({p.email})</em>
+                </>
+              ) : (
+                ''
+              )}
+            </span>
+          ))}
+        </span>
+      )
+    }
+    if (value.every((v) => typeof v === 'string')) {
+      return (
+        <ul className="actions-executor-param-list">
+          {value.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      )
+    }
+    return <>{JSON.stringify(value)}</>
+  }
+  if (typeof value === 'object') return <>{JSON.stringify(value)}</>
+  return null
+}
+
+/** Icon for executor action type */
+function ActionIcon({ toolType, server }: { toolType: string; server?: string }) {
+  const className = 'actions-executor-card-icon-svg'
+  const t = toolType.toLowerCase()
+  const s = (server ?? '').toLowerCase()
+  // Slack (chat): match by server or tool_type
+  if (s.includes('slack') || t.includes('slack')) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      </svg>
+    )
+  }
+  // Calendar: set_calendar_event, create_calendar_event, etc.
+  if (t.includes('calendar')) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    )
+  }
+  // Notion: document (match by server or tool_type)
+  if (s.includes('notion') || t.includes('notion')) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    )
+  }
+  // Jira: pen / edit (match by server or tool_type)
+  if (s.includes('jira') || t.includes('jira')) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+    )
+  }
+  switch (toolType) {
+    case 'send_email':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+          <polyline points="22,6 12,13 2,6" />
+        </svg>
+      )
+    case 'create_calendar_event':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      )
+    case 'create_task':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h7" />
+        </svg>
+      )
+    case 'set_reminder':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      )
+    default:
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+      )
+  }
+}
+
 export function ActionsPage() {
   const { user, isLoading } = useAuth0()
   const navigate = useNavigate()
-  const [step, setStep] = useState<'upload' | 'pipeline'>('upload')
+  const [step, setStep] = useState<'upload' | 'pipeline' | 'actions'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [uploadFormKey, setUploadFormKey] = useState(0)
   const [meetingDate, setMeetingDate] = useState('')
@@ -93,6 +249,7 @@ export function ActionsPage() {
   const [runError, setRunError] = useState<string | null>(null)
   const [runComplete, setRunComplete] = useState(false)
   const [runSummary, setRunSummary] = useState<RunCompleteData['summary']>(undefined)
+  const [executorActions, setExecutorActions] = useState<ExecutorAction[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [agents, setAgents] = useState<AgentCardState[]>(() =>
     buildAgentState(
@@ -209,6 +366,8 @@ export function ActionsPage() {
         onRunComplete: (data: RunCompleteData) => {
           setRunComplete(true)
           if (data.summary) setRunSummary(data.summary)
+          if (data.executor_actions) setExecutorActions(data.executor_actions)
+          if (data.executor_actions?.length) setStep('actions')
           unsubscribeStreamRef.current = null
         },
         onError: (data: ErrorData) => {
@@ -240,6 +399,7 @@ export function ActionsPage() {
     setRunError(null)
     setRunComplete(false)
     setRunSummary(undefined)
+    setExecutorActions([])
     setUploadFormKey((k) => k + 1)
     setAgents(
       buildAgentState(
@@ -256,7 +416,8 @@ export function ActionsPage() {
   const pipelineComplete =
     step === 'pipeline' &&
     (runComplete || (extractorDone && normalizerDone && executorDone))
-  const activeStepNumber = step === 'upload' ? 1 : pipelineComplete ? 3 : 2
+  const activeStepNumber =
+    step === 'upload' ? 1 : step === 'pipeline' ? 2 : 3
 
   if (isLoading || !user) {
     return (
@@ -291,7 +452,7 @@ export function ActionsPage() {
               <li className={`actions-step-progress-connector ${activeStepNumber > 2 ? 'is-complete' : ''}`} aria-hidden />
               <li className={`actions-step-progress-item ${activeStepNumber >= 3 ? 'is-active' : ''} ${activeStepNumber > 3 ? 'is-complete' : ''}`}>
                 <span className="actions-step-progress-marker">3</span>
-                <span className="actions-step-progress-label">Complete</span>
+                <span className="actions-step-progress-label">Actions</span>
               </li>
             </ol>
           </nav>
@@ -370,7 +531,7 @@ export function ActionsPage() {
                 </div>
               </form>
             </section>
-          ) : (
+          ) : step === 'pipeline' ? (
             <section className="section actions-pipeline-section">
               <div className="actions-pipeline-header">
                 <h2 className="section-title">Pipeline Run</h2>
@@ -395,15 +556,90 @@ export function ActionsPage() {
                     {runError}
                   </p>
                 )}
-                <button type="button" className="btn btn-secondary" onClick={handleBack}>
-                  Back to upload
-                </button>
+                <div className="actions-pipeline-actions">
+                  <button type="button" className="btn btn-secondary" onClick={handleBack}>
+                    Back to upload
+                  </button>
+                  {pipelineComplete && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setStep('actions')}
+                    >
+                      Next — View actions
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="actions-agent-cards">
                 {agents.map((agent) => (
                   <AgentCard key={agent.id} agent={agent} />
                 ))}
               </div>
+            </section>
+          ) : (
+            <section className="section actions-actions-section">
+              <h2 className="section-title">Actions</h2>
+              <p className="section-desc">Actions sent to the executor. Use the button to run or preview.</p>
+              <button type="button" className="btn btn-secondary actions-back-btn" onClick={() => setStep('pipeline')}>
+                Back to pipeline
+              </button>
+              <p className="actions-executor-total" role="status">
+                Total actions extracted: <b>{executorActions.length}</b>
+              </p>
+              <ul className="actions-executor-list-items">
+                {executorActions.map((action) => (
+                  <li key={action.id} className="actions-executor-list-item">
+                    <div className="actions-executor-card ecosystem-card">
+                      <div className="actions-executor-card-icon">
+                        <ActionIcon toolType={action.tool_type} server={action.server} />
+                      </div>
+                      <div className="actions-executor-card-body">
+                        {action.params && typeof action.params === 'object' && (() => {
+                          const entries = Object.entries(action.params).filter(([key]) => key !== 'labels')
+                          if (entries.length === 0) return null
+                          return (
+                            <dl className="actions-executor-params">
+                              {entries.map(([key, value]) => (
+                                <div key={key} className="actions-executor-param">
+                                  <dt className="actions-executor-param-key">{formatLabelKey(key)}</dt>
+                                  <dd className="actions-executor-param-value">
+                                    <ParamValue value={value} />
+                                  </dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )
+                        })()}
+                        <div className="actions-executor-meta">
+                          <span className={`actions-executor-status actions-executor-status--${action.status}`}>
+                            {formatLabelKey(action.status)}
+                          </span>
+                          {(action.labels ?? (Array.isArray(action.params?.labels) ? (action.params.labels as string[]) : [])).map((label) => (
+                            <span key={label} className="actions-executor-status actions-executor-status--label">
+                              {formatLabelKey(label)}
+                            </span>
+                          ))}
+                          {action.error && (
+                            <span className="actions-executor-error">{action.error}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="actions-executor-card-actions">
+                        <button type="button" className="btn btn-primary actions-executor-btn actions-executor-btn-action">
+                          Accept
+                        </button>
+                        <button type="button" className="btn actions-executor-btn actions-executor-btn-modify">
+                          Modify
+                        </button>
+                        <button type="button" className="btn actions-executor-btn actions-executor-btn-reject">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </div>
