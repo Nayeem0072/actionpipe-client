@@ -48,7 +48,8 @@
 }
 
 .logo-text {
-  font-family: 'Kelly Slab', var(--font);
+  font-family: 'Khmer', var(--font);
+  font-size: 1.1em;
 }
 
 .logo:hover {
@@ -105,6 +106,9 @@
   font-weight: 400;
   text-decoration: none;
   transition: background 0.2s;
+  border: none;
+  cursor: pointer;
+  appearance: none;
 }
 
 .btn-header:hover {
@@ -125,6 +129,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-user {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.header-user-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Hero — full-width background + centered body */
@@ -209,12 +227,19 @@
   margin-bottom: 24px;
 }
 
-.hero-login a {
+.hero-login a,
+.hero-login-btn {
   color: var(--text-tertiary);
   text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
 }
 
-.hero-login a:hover {
+.hero-login a:hover,
+.hero-login-btn:hover {
   color: var(--text-muted);
 }
 
@@ -668,6 +693,20 @@
   margin-top: 16px;
 }
 
+/* Dashboard */
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.dashboard-card .dashboard-card-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 8px 0 12px;
+}
+
 /* For whom — pipeline-style cards in one row */
 .audience {
   padding: 48px 0;
@@ -842,5 +881,9 @@
   .footer-grid {
     grid-template-columns: 1fr;
     text-align: center;
+  }
+
+  .dashboard-cards {
+    grid-template-columns: 1fr;
   }
 }
