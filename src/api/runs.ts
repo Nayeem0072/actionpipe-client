@@ -77,6 +77,7 @@ export interface RunCompleteData {
   summary?: {
     actions_extracted?: number
     actions_normalized?: number
+    actions_executed?: number
     [key: string]: unknown
   }
 }
@@ -153,7 +154,7 @@ export function subscribeToRunStream(runId: string, callbacks: StreamCallbacks):
   es.addEventListener('agent_done', handleEvent)
   es.addEventListener('run_complete', handleEvent)
   es.addEventListener('error', (e) => {
-    if (e.data) handleEvent(e as MessageEvent<string>)
+    if ('data' in e && e.data) handleEvent(e as MessageEvent<string>)
     else callbacks.onError?.({ message: 'Stream connection failed' })
     es.close()
   })

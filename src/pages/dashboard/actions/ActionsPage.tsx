@@ -40,9 +40,8 @@ const INITIAL_NORMALIZER_STEPS: WorkingStep[] = [
 ]
 
 const INITIAL_EXECUTOR_STEPS: WorkingStep[] = [
-  { id: '1', label: 'Receive normalized actions', status: 'pending' },
-  { id: '2', label: 'Dry-run preview', status: 'pending' },
-  { id: '3', label: 'Execute (or skip)', status: 'pending' },
+  { id: '1', label: 'Contact resolver', status: 'pending' },
+  { id: '2', label: 'MCP dispatcher', status: 'pending' },
 ]
 
 function buildAgentState(
@@ -77,6 +76,12 @@ const NORMALIZER_STEP_INDEX: Record<string, number> = {
   tool_classifier: 4,
 }
 
+// Map backend step names to our executor step indices (0–1)
+const EXECUTOR_STEP_INDEX: Record<string, number> = {
+  contact_resolver: 0,
+  mcp_dispatcher: 1,
+}
+
 export function ActionsPage() {
   const { user, isLoading } = useAuth0()
   const navigate = useNavigate()
@@ -104,15 +109,16 @@ export function ActionsPage() {
     }
   }, [isLoading, user, navigate])
 
-  // Apply SSE stream events to agent steps (extractor and normalizer)
+  // Apply SSE stream events to agent steps (extractor, normalizer, executor)
   const applyProgress = (data: ProgressData) => {
-    const isExtractor = data.agent === 'extractor'
-    const isNormalizer = data.agent === 'normalizer'
-    if (!isExtractor && !isNormalizer) return
-
-    const stepIndex = isExtractor
-      ? EXTRACTOR_STEP_INDEX[data.step]
-      : NORMALIZER_STEP_INDEX[data.step]
+    const stepIndex =
+      data.agent === 'extractor'
+        ? EXTRACTOR_STEP_INDEX[data.step]
+        : data.agent === 'normalizer'
+          ? NORMALIZER_STEP_INDEX[data.step]
+          : data.agent === 'executor'
+            ? EXECUTOR_STEP_INDEX[data.step]
+            : undefined
     if (stepIndex === undefined) return
 
     const agentId = data.agent
@@ -139,13 +145,14 @@ export function ActionsPage() {
   }
 
   const applyStepDone = (data: StepDoneData) => {
-    const isExtractor = data.agent === 'extractor'
-    const isNormalizer = data.agent === 'normalizer'
-    if (!isExtractor && !isNormalizer) return
-
-    const stepIndex = isExtractor
-      ? EXTRACTOR_STEP_INDEX[data.step]
-      : NORMALIZER_STEP_INDEX[data.step]
+    const stepIndex =
+      data.agent === 'extractor'
+        ? EXTRACTOR_STEP_INDEX[data.step]
+        : data.agent === 'normalizer'
+          ? NORMALIZER_STEP_INDEX[data.step]
+          : data.agent === 'executor'
+            ? EXECUTOR_STEP_INDEX[data.step]
+            : undefined
     if (stepIndex === undefined) return
 
     const agentId = data.agent
@@ -168,7 +175,7 @@ export function ActionsPage() {
   }
 
   const applyAgentDone = (data: AgentDoneData) => {
-    if (data.agent !== 'extractor' && data.agent !== 'normalizer') return
+    if (data.agent !== 'extractor' && data.agent !== 'normalizer' && data.agent !== 'executor') return
     setAgents((prev) =>
       prev.map((a) =>
         a.id === data.agent
@@ -245,9 +252,10 @@ export function ActionsPage() {
 
   const extractorDone = agents.find((a) => a.id === 'extractor')?.steps.every((s) => s.status === 'done') ?? false
   const normalizerDone = agents.find((a) => a.id === 'normalizer')?.steps.every((s) => s.status === 'done') ?? false
+  const executorDone = agents.find((a) => a.id === 'executor')?.steps.every((s) => s.status === 'done') ?? false
   const pipelineComplete =
     step === 'pipeline' &&
-    (runComplete || (extractorDone && normalizerDone))
+    (runComplete || (extractorDone && normalizerDone && executorDone))
   const activeStepNumber = step === 'upload' ? 1 : pipelineComplete ? 3 : 2
 
   if (isLoading || !user) {
@@ -372,9 +380,13 @@ export function ActionsPage() {
                     {runSummary.actions_extracted != null && (
                       <>Actions extracted: {runSummary.actions_extracted}</>
                     )}
-                    {runSummary.actions_extracted != null && runSummary.actions_normalized != null && ' · '}
+                    {runSummary.actions_extracted != null && (runSummary.actions_normalized != null || runSummary.actions_executed != null) && ' · '}
                     {runSummary.actions_normalized != null && (
                       <>Actions normalized: {runSummary.actions_normalized}</>
+                    )}
+                    {runSummary.actions_normalized != null && runSummary.actions_executed != null && ' · '}
+                    {runSummary.actions_executed != null && (
+                      <>Actions executed: {runSummary.actions_executed}</>
                     )}
                   </p>
                 )}
