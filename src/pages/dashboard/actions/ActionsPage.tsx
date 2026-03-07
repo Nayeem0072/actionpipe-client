@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { DashboardSidebar } from '../../../components/DashboardSidebar'
 import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
-import type { ProgressData, StepDoneData, AgentDoneData, ErrorData } from '../../../api/runs'
+import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData } from '../../../api/runs'
 
 type StepStatus = 'pending' | 'done' | 'ongoing'
 
@@ -23,20 +23,20 @@ interface AgentCardState {
 
 const INITIAL_EXTRACTOR_STEPS: WorkingStep[] = [
   { id: '1', label: 'Load transcript', status: 'pending' },
-  { id: '2', label: 'Segment (split into chunks)', status: 'pending' },
-  { id: '3', label: 'Chunks', status: 'pending' },
-  { id: '4', label: 'Parallel extract (per chunk)', status: 'pending' },
-  { id: '5', label: 'Evidence normalizer', status: 'pending' },
-  { id: '6', label: 'Cross-chunk resolver', status: 'pending' },
-  { id: '7', label: 'Global deduplicator', status: 'pending' },
-  { id: '8', label: 'Action finalizer', status: 'pending' },
+  { id: '2', label: 'Segmenter', status: 'pending' },
+  { id: '3', label: 'Parallel extraction', status: 'pending' },
+  { id: '4', label: 'Evidence normalizer', status: 'pending' },
+  { id: '5', label: 'Cross-chunk resolver', status: 'pending' },
+  { id: '6', label: 'Global deduplicator', status: 'pending' },
+  { id: '7', label: 'Action finalizer', status: 'pending' },
 ]
 
 const INITIAL_NORMALIZER_STEPS: WorkingStep[] = [
-  { id: '1', label: 'Receive raw actions', status: 'pending' },
-  { id: '2', label: 'Classify tools', status: 'pending' },
-  { id: '3', label: 'Resolve contacts', status: 'pending' },
-  { id: '4', label: 'Normalize payloads', status: 'pending' },
+  { id: '1', label: 'Deadline normalizer', status: 'pending' },
+  { id: '2', label: 'Verb enricher', status: 'pending' },
+  { id: '3', label: 'Action splitter', status: 'pending' },
+  { id: '4', label: 'Deduplicator', status: 'pending' },
+  { id: '5', label: 'Tool classifier', status: 'pending' },
 ]
 
 const INITIAL_EXECUTOR_STEPS: WorkingStep[] = [
@@ -51,22 +51,30 @@ function buildAgentState(
   executor: WorkingStep[]
 ): AgentCardState[] {
   return [
-    { id: 'extractor', name: 'Extractor agent', steps: extractor },
-    { id: 'normalizer', name: 'Normalizer agent', steps: normalizer },
-    { id: 'executor', name: 'Executor agent', steps: executor },
+    { id: 'extractor', name: 'Extractor Agent', steps: extractor },
+    { id: 'normalizer', name: 'Normalizer Agent', steps: normalizer },
+    { id: 'executor', name: 'Executor Agent', steps: executor },
   ]
 }
 
-// Map backend step names to our extractor step indices (0–7)
+// Map backend step names to our extractor step indices (0–6)
 const EXTRACTOR_STEP_INDEX: Record<string, number> = {
   load_transcript: 0,
   segmenter: 1,
-  chunks: 2,
-  parallel_extractor: 3,
-  evidence_normalizer: 4,
-  cross_chunk_resolver: 5,
-  global_deduplicator: 6,
-  action_finalizer: 7,
+  parallel_extractor: 2,
+  evidence_normalizer: 3,
+  cross_chunk_resolver: 4,
+  global_deduplicator: 5,
+  action_finalizer: 6,
+}
+
+// Map backend step names to our normalizer step indices (0–4)
+const NORMALIZER_STEP_INDEX: Record<string, number> = {
+  deadline_normalizer: 0,
+  verb_enricher: 1,
+  action_splitter: 2,
+  deduplicator: 3,
+  tool_classifier: 4,
 }
 
 export function ActionsPage() {
@@ -78,6 +86,8 @@ export function ActionsPage() {
   const [meetingDate, setMeetingDate] = useState('')
   const [language, setLanguage] = useState('en')
   const [runError, setRunError] = useState<string | null>(null)
+  const [runComplete, setRunComplete] = useState(false)
+  const [runSummary, setRunSummary] = useState<RunCompleteData['summary']>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [agents, setAgents] = useState<AgentCardState[]>(() =>
     buildAgentState(
@@ -94,16 +104,23 @@ export function ActionsPage() {
     }
   }, [isLoading, user, navigate])
 
-  // Apply SSE stream events to agent steps (extractor only for now)
+  // Apply SSE stream events to agent steps (extractor and normalizer)
   const applyProgress = (data: ProgressData) => {
-    if (data.agent !== 'extractor') return
-    const idx = EXTRACTOR_STEP_INDEX[data.step]
-    if (idx === undefined) return
+    const isExtractor = data.agent === 'extractor'
+    const isNormalizer = data.agent === 'normalizer'
+    if (!isExtractor && !isNormalizer) return
+
+    const stepIndex = isExtractor
+      ? EXTRACTOR_STEP_INDEX[data.step]
+      : NORMALIZER_STEP_INDEX[data.step]
+    if (stepIndex === undefined) return
+
+    const agentId = data.agent
     setAgents((prev) =>
       prev.map((a) => {
-        if (a.id !== 'extractor') return a
+        if (a.id !== agentId) return a
         const steps = a.steps.map((s, i) => {
-          if (i === idx) {
+          if (i === stepIndex) {
             return {
               ...s,
               status: 'ongoing' as const,
@@ -111,9 +128,7 @@ export function ActionsPage() {
               ...(data.total != null && { total: data.total }),
             }
           }
-          // When parallel_extractor (or any step) gets progress, mark all previous
-          // steps done so we never show e.g. "Parallel extract" active before "Chunks"
-          if (i < idx && s.status !== 'done') {
+          if (i < stepIndex && s.status !== 'done') {
             return { ...s, status: 'done' as const }
           }
           return s
@@ -124,21 +139,28 @@ export function ActionsPage() {
   }
 
   const applyStepDone = (data: StepDoneData) => {
-    if (data.agent !== 'extractor') return
-    const idx = EXTRACTOR_STEP_INDEX[data.step]
-    if (idx === undefined) return
+    const isExtractor = data.agent === 'extractor'
+    const isNormalizer = data.agent === 'normalizer'
+    if (!isExtractor && !isNormalizer) return
+
+    const stepIndex = isExtractor
+      ? EXTRACTOR_STEP_INDEX[data.step]
+      : NORMALIZER_STEP_INDEX[data.step]
+    if (stepIndex === undefined) return
+
+    const agentId = data.agent
     setAgents((prev) =>
       prev.map((a) => {
-        if (a.id !== 'extractor') return a
-        const extractorSteps = a.steps
-        const allPreviousDone = extractorSteps
-          .slice(0, idx)
+        if (a.id !== agentId) return a
+        const agentSteps = a.steps
+        const allPreviousDone = agentSteps
+          .slice(0, stepIndex)
           .every((s) => s.status === 'done')
         if (!allPreviousDone) return a
         return {
           ...a,
-          steps: extractorSteps.map((s, i) =>
-            i === idx ? { ...s, status: 'done' as const } : s
+          steps: agentSteps.map((s, i) =>
+            i === stepIndex ? { ...s, status: 'done' as const } : s
           ),
         }
       })
@@ -146,10 +168,10 @@ export function ActionsPage() {
   }
 
   const applyAgentDone = (data: AgentDoneData) => {
-    if (data.agent !== 'extractor') return
+    if (data.agent !== 'extractor' && data.agent !== 'normalizer') return
     setAgents((prev) =>
       prev.map((a) =>
-        a.id === 'extractor'
+        a.id === data.agent
           ? {
               ...a,
               steps: a.steps.map((s) =>
@@ -177,7 +199,9 @@ export function ActionsPage() {
         onProgress: applyProgress,
         onStepDone: applyStepDone,
         onAgentDone: applyAgentDone,
-        onRunComplete: () => {
+        onRunComplete: (data: RunCompleteData) => {
+          setRunComplete(true)
+          if (data.summary) setRunSummary(data.summary)
           unsubscribeStreamRef.current = null
         },
         onError: (data: ErrorData) => {
@@ -207,6 +231,8 @@ export function ActionsPage() {
     setStep('upload')
     setFile(null)
     setRunError(null)
+    setRunComplete(false)
+    setRunSummary(undefined)
     setUploadFormKey((k) => k + 1)
     setAgents(
       buildAgentState(
@@ -217,7 +243,11 @@ export function ActionsPage() {
     )
   }
 
-  const pipelineComplete = step === 'pipeline' && agents.every((a) => a.steps.every((s) => s.status === 'done'))
+  const extractorDone = agents.find((a) => a.id === 'extractor')?.steps.every((s) => s.status === 'done') ?? false
+  const normalizerDone = agents.find((a) => a.id === 'normalizer')?.steps.every((s) => s.status === 'done') ?? false
+  const pipelineComplete =
+    step === 'pipeline' &&
+    (runComplete || (extractorDone && normalizerDone))
   const activeStepNumber = step === 'upload' ? 1 : pipelineComplete ? 3 : 2
 
   if (isLoading || !user) {
@@ -337,6 +367,17 @@ export function ActionsPage() {
               <div className="actions-pipeline-header">
                 <h2 className="section-title">Pipeline Run</h2>
                 <p className="section-desc">Agents run in order: Extractor → Normalizer → Executor.</p>
+                {pipelineComplete && runSummary && (
+                  <p className="actions-run-summary" role="status">
+                    {runSummary.actions_extracted != null && (
+                      <>Actions extracted: {runSummary.actions_extracted}</>
+                    )}
+                    {runSummary.actions_extracted != null && runSummary.actions_normalized != null && ' · '}
+                    {runSummary.actions_normalized != null && (
+                      <>Actions normalized: {runSummary.actions_normalized}</>
+                    )}
+                  </p>
+                )}
                 {runError && (
                   <p className="actions-run-error" role="alert">
                     {runError}

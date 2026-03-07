@@ -1414,6 +1414,12 @@
   margin-bottom: 12px;
 }
 
+.actions-run-summary {
+  color: var(--text-secondary, #555);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
 .actions-pipeline-header {
   margin-bottom: 28px;
 }

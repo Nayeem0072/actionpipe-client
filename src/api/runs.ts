@@ -74,7 +74,11 @@ export interface AgentDoneData {
 }
 
 export interface RunCompleteData {
-  summary?: { actions_extracted?: number; [key: string]: unknown }
+  summary?: {
+    actions_extracted?: number
+    actions_normalized?: number
+    [key: string]: unknown
+  }
 }
 
 export interface ErrorData {
