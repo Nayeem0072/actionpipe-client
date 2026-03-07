@@ -691,7 +691,7 @@
 }
 
 .ecosystem-card .btn {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 /* Dashboard */
@@ -1598,7 +1598,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 24px;
+  padding: 15px;
   border: 1px solid var(--border);
 }
 
@@ -1734,6 +1734,11 @@
 
 .actions-executor-btn {
   margin-top: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .actions-executor-card-actions {
@@ -1741,7 +1746,41 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
+  width: 110px;
+}
+
+.actions-executor-btn-action {
+  background: #78d9cb;
+  border: 1px solid #78d9cb;
+  color: #252526;
+}
+
+.actions-executor-btn-action:hover {
+  opacity: 0.9;
+}
+
+.actions-executor-btn-modify {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.actions-executor-btn-modify:hover {
+  background: var(--surface-glass);
+}
+
+.actions-executor-btn-reject {
+  /* background: #2b1212;
+  color: #fff;
+  border: 1px solid #6a0d0d; */
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.actions-executor-btn-reject:hover {
+  opacity: 0.9;
 }
 
 @media (max-width: 1024px) {
@@ -1814,6 +1853,12 @@
     flex-direction: row;
     width: 100%;
     justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .actions-executor-card-actions .actions-executor-btn {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .actions-upload-cards {

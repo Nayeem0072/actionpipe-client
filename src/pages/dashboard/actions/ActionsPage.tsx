@@ -626,11 +626,14 @@ export function ActionsPage() {
                         </div>
                       </div>
                       <div className="actions-executor-card-actions">
-                        <button type="button" className="btn btn-secondary actions-executor-btn">
-                          Edit
+                        <button type="button" className="btn btn-primary actions-executor-btn actions-executor-btn-action">
+                          Accept
                         </button>
-                        <button type="button" className="btn btn-primary actions-executor-btn">
-                          {formatToolTypeLabel(action.tool_type)}
+                        <button type="button" className="btn actions-executor-btn actions-executor-btn-modify">
+                          Modify
+                        </button>
+                        <button type="button" className="btn actions-executor-btn actions-executor-btn-reject">
+                          Reject
                         </button>
                       </div>
                     </div>
