@@ -98,6 +98,28 @@ function formatLabelKey(key: string): string {
     .join(' ')
 }
 
+/** Tooltip text for action card icon (e.g. "Action with Jira", "Action with Email") */
+function getActionIconTooltip(toolType: string, server?: string): string {
+  const t = toolType.toLowerCase()
+  const s = (server ?? '').toLowerCase()
+  if (s.includes('slack') || t.includes('slack')) return 'Action with Slack'
+  if (t.includes('calendar')) return 'Action with Calendar'
+  if (s.includes('notion') || t.includes('notion')) return 'Action with Notion'
+  if (s.includes('jira') || t.includes('jira')) return 'Action with Jira'
+  switch (toolType) {
+    case 'send_email':
+      return 'Action with Email'
+    case 'create_calendar_event':
+      return 'Action with Calendar'
+    case 'create_task':
+      return 'Action with Task'
+    case 'set_reminder':
+      return 'Action with Reminder'
+    default:
+      return 'Action'
+  }
+}
+
 /** Renders a param value in a readable way (e.g. participants as a list of "Name (email)") */
 function ParamValue({ value }: { value: unknown }) {
   if (value === null || value === undefined) return <span className="actions-executor-param-na">N/A</span>
@@ -551,7 +573,11 @@ export function ActionsPage() {
                 {executorActions.map((action) => (
                   <li key={action.id} className="actions-executor-list-item">
                     <div className="actions-executor-card ecosystem-card">
-                      <div className="actions-executor-card-icon">
+                      <div
+                        className="actions-executor-card-icon"
+                        title={getActionIconTooltip(action.tool_type, action.server)}
+                        aria-label={getActionIconTooltip(action.tool_type, action.server)}
+                      >
                         <ActionIcon toolType={action.tool_type} server={action.server} />
                       </div>
                       <div className="actions-executor-card-body">

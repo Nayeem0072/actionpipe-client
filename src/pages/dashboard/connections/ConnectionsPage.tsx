@@ -104,7 +104,8 @@ export function ConnectionsPage() {
                   >
                     <div
                       className="actions-executor-card-icon connections-card-icon"
-                      aria-hidden
+                      title={`Connect ${integration.name}`}
+                      aria-label={`Connect ${integration.name}`}
                     >
                       {integration.id === 'notion' ? (
                         <NotionIcon className="connections-card-icon-svg" />
