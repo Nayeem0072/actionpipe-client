@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 
@@ -95,9 +95,30 @@ function SearchIcon({ className }: { className?: string }) {
 
 export function DashboardSidebar() {
   const [search, setSearch] = useState('')
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['dashboard']))
-  const { user, logout } = useAuth0()
   const location = useLocation()
+  const { user, logout } = useAuth0()
+
+  // Keep all section drawers that have children expanded when on dashboard (so Features stays open when you open Connections, etc.)
+  const getExpandedIdsForPath = (pathname: string) => {
+    const set = new Set<string>()
+    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+      set.add('dashboard')
+      set.add('features')
+      set.add('integrations')
+    }
+    return set
+  }
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => getExpandedIdsForPath(location.pathname))
+
+  // When route changes, keep the active section expanded (e.g. after clicking Actions or Connections)
+  useEffect(() => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      getExpandedIdsForPath(location.pathname).forEach((id) => next.add(id))
+      return next
+    })
+  }, [location.pathname])
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
