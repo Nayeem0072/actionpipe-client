@@ -51,23 +51,23 @@ function NotionIcon({ className }: { className?: string }) {
   )
 }
 
-export function ConnectionsPage() {
+export function IntegrationsPage() {
   const handleConnect = (id: string) => {
-    // Placeholder: connection flow will be implemented later
+    // Placeholder: integration flow will be implemented later
     console.log('Connect:', id)
   }
 
   return (
     <>
       <header className="dashboard-main-header">
-        <h1 className="dashboard-main-title">Connections</h1>
+        <h1 className="dashboard-main-title">Integrations</h1>
         <p className="dashboard-main-subtitle">
           Connect your tools so ActionPipe can send tasks, create issues, and sync with your workflow.
         </p>
       </header>
       <div className="dashboard-main-content">
           <section className="section">
-            <h2 className="section-title">Connection Points</h2>
+            <h2 className="section-title">Integration Points</h2>
             <div className="section-desc">
               Authorize each service below. You can connect or disconnect at any time from this page.
             </div>

@@ -26,12 +26,13 @@ const sidebarNav = [
     ],
   },
   {
-    id: 'integrations',
-    label: 'Integrations',
+    id: 'connections',
+    label: 'Connections',
     href: '/#features',
     icon: IntegrationsIcon,
     children: [
-      { label: 'Connections', href: '/dashboard/connections' },
+      { label: 'Integrations', href: '/dashboard/integrations' },
+      { label: 'Network', href: '/dashboard/network' },
     ],
   },
   { id: 'settings', label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
@@ -108,7 +109,7 @@ export function DashboardSidebar() {
     if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
       set.add('dashboard')
       set.add('features')
-      set.add('integrations')
+      set.add('connections')
     }
     return set
   }
@@ -179,7 +180,7 @@ export function DashboardSidebar() {
             const isParentActive =
               (item.href === '/dashboard' && location.pathname.startsWith('/dashboard')) ||
               (item.id === 'features' && location.pathname.startsWith('/dashboard/actions')) ||
-              (item.id === 'integrations' && location.pathname.startsWith('/dashboard/connections'))
+              (item.id === 'connections' && (location.pathname.startsWith('/dashboard/integrations') || location.pathname.startsWith('/dashboard/network')))
 
             if (hasChildren) {
               return (
