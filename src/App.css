@@ -1065,6 +1065,84 @@
   margin-bottom: 32px;
 }
 
+/* Connections page — integration cards */
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.connection-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn, 8px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.connection-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.connection-card-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--surface-glass);
+}
+
+.connection-card-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.connection-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-card-title {
+  font-family: var(--font);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.connection-card-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.connection-card-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.connection-card[data-connected="true"] .connection-card-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.connection-card[data-connected="true"] .connection-card-btn:hover {
+  background: var(--surface-glass);
+  color: var(--text);
+}
+
+
 /* For whom — pipeline-style cards in one row */
 .audience {
   padding: 48px 0;
@@ -1625,6 +1703,29 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.connections-card-body {
+  gap: 4px;
+}
+
+.connections-card-body h4 {
+  margin: 0 0 2px;
+}
+
+/* Font Awesome icons in connection cards (match executor card icon size) */
+.actions-executor-card-icon i[class^="fa-"] {
+  font-size: 1.5rem;
+}
+
+/* White icons for connection cards (readable on dark background; fixes Notion) */
+.connections-card-icon {
+  color: var(--accent);
+}
+
+.connections-card-icon-svg {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .actions-executor-params {
