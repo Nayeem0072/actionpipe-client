@@ -14,8 +14,12 @@ export interface CreateRunOptions {
 /**
  * Create a pipeline run via POST /runs (multipart).
  * Returns runId and streamUrl for SSE consumption.
+ * Sends the access token so the backend can identify the user.
  */
-export async function createRun(options: CreateRunOptions): Promise<CreateRunResponse> {
+export async function createRun(
+  options: CreateRunOptions,
+  accessToken: string
+): Promise<CreateRunResponse> {
   const base = getApiBase()
   const form = new FormData()
   form.append('file', options.file)
@@ -24,6 +28,9 @@ export async function createRun(options: CreateRunOptions): Promise<CreateRunRes
 
   const res = await fetch(`${base}/runs`, {
     method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: form,
   })
 
@@ -120,12 +127,17 @@ export interface StreamCallbacks {
 
 /**
  * Subscribe to GET /runs/{runId}/stream via EventSource.
+ * EventSource does not support custom headers, so the token is sent as a query param.
  * Calls the appropriate callback for each SSE event type.
  * Returns an unsubscribe function.
  */
-export function subscribeToRunStream(runId: string, callbacks: StreamCallbacks): () => void {
+export function subscribeToRunStream(
+  runId: string,
+  accessToken: string,
+  callbacks: StreamCallbacks
+): () => void {
   const base = getApiBase()
-  const url = `${base}/runs/${runId}/stream`
+  const url = `${base}/runs/${runId}/stream?token=${encodeURIComponent(accessToken)}`
   const es = new EventSource(url)
 
   function handleEvent(event: MessageEvent<string>) {

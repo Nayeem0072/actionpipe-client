@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useAuth0 } from '@auth0/auth0-react'
 import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
 import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData, ExecutorAction } from '../../../api/runs'
 
@@ -196,6 +197,7 @@ function ActionIcon({ toolType, server }: { toolType: string; server?: string })
 }
 
 export function ActionsPage() {
+  const { getAccessTokenSilently } = useAuth0()
   const [step, setStep] = useState<'upload' | 'pipeline' | 'actions'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [uploadFormKey, setUploadFormKey] = useState(0)
@@ -302,13 +304,20 @@ export function ActionsPage() {
     setRunError(null)
     setIsSubmitting(true)
     try {
-      const { runId } = await createRun({
-        file,
-        meetingDate: meetingDate || undefined,
-        language: language || undefined,
-      })
+      const audience = import.meta.env.VITE_AUTH0_AUDIENCE
+      const token = await getAccessTokenSilently(
+        audience ? { authorizationParams: { audience } } : undefined
+      )
+      const { runId } = await createRun(
+        {
+          file,
+          meetingDate: meetingDate || undefined,
+          language: language || undefined,
+        },
+        token
+      )
       setStep('pipeline')
-      const unsubscribe = subscribeToRunStream(runId, {
+      const unsubscribe = subscribeToRunStream(runId, token, {
         onProgress: applyProgress,
         onStepDone: applyStepDone,
         onAgentDone: applyAgentDone,
