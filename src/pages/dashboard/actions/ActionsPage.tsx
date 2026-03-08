@@ -1,7 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
-import { DashboardSidebar } from '../../../components/DashboardSidebar'
+import { useState, useRef } from 'react'
 import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
 import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData, ExecutorAction } from '../../../api/runs'
 
@@ -199,8 +196,6 @@ function ActionIcon({ toolType, server }: { toolType: string; server?: string })
 }
 
 export function ActionsPage() {
-  const { user, isLoading } = useAuth0()
-  const navigate = useNavigate()
   const [step, setStep] = useState<'upload' | 'pipeline' | 'actions'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [uploadFormKey, setUploadFormKey] = useState(0)
@@ -219,12 +214,6 @@ export function ActionsPage() {
     )
   )
   const unsubscribeStreamRef = useRef<(() => void) | null>(null)
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate('/', { replace: true })
-    }
-  }, [isLoading, user, navigate])
 
   // Apply SSE stream events to agent steps (extractor, normalizer, executor)
   const applyProgress = (data: ProgressData) => {
@@ -379,25 +368,15 @@ export function ActionsPage() {
   const activeStepNumber =
     step === 'upload' ? 1 : step === 'pipeline' ? 2 : 3
 
-  if (isLoading || !user) {
-    return (
-      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <p className="section-desc">Loading…</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="dashboard-layout">
-      <DashboardSidebar />
-      <main className="dashboard-main">
-        <header className="dashboard-main-header">
-          <h1 className="dashboard-main-title">Actions</h1>
-          <p className="dashboard-main-subtitle">
-            Upload a meeting transcript and run the ActionPipe pipeline (extract → normalize → execute).
-          </p>
-        </header>
-        <div className="dashboard-main-content">
+    <>
+      <header className="dashboard-main-header">
+        <h1 className="dashboard-main-title">Actions</h1>
+        <p className="dashboard-main-subtitle">
+          Upload a meeting transcript and run the ActionPipe pipeline (extract → normalize → execute).
+        </p>
+      </header>
+      <div className="dashboard-main-content">
           <nav className="actions-step-progress" aria-label="Progress">
             <ol className="actions-step-progress-list">
               <li className={`actions-step-progress-item ${activeStepNumber >= 1 ? 'is-active' : ''} ${activeStepNumber > 1 ? 'is-complete' : ''}`}>
@@ -483,7 +462,7 @@ export function ActionsPage() {
                   )}
                   <button
                     type="submit"
-                    className="btn btn-primary"
+                    className="btn btn-accent"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? 'Starting…' : 'Next — Start pipeline'}
@@ -523,7 +502,7 @@ export function ActionsPage() {
                   {pipelineComplete && (
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="btn btn-accent"
                       onClick={() => setStep('actions')}
                     >
                       Next — View actions
@@ -541,7 +520,7 @@ export function ActionsPage() {
             <section className="section actions-actions-section">
               <h2 className="section-title">Actions</h2>
               <p className="section-desc">Actions sent to the executor. Use the button to run or preview.</p>
-              <button type="button" className="btn btn-secondary actions-back-btn" onClick={() => setStep('pipeline')}>
+              <button type="button" className="btn btn-accent actions-back-btn" onClick={() => setStep('pipeline')}>
                 Back to pipeline
               </button>
               <p className="actions-executor-total" role="status">
@@ -603,8 +582,7 @@ export function ActionsPage() {
             </section>
           )}
         </div>
-      </main>
-    </div>
+    </>
   )
 }
 

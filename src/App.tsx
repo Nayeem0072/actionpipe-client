@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { LandingPage } from './pages/landing'
+import { DashboardLayout } from './components/DashboardLayout'
 import { DashboardPage, ActionsPage, ConnectionsPage } from './pages/dashboard'
 import './App.css'
 
@@ -36,9 +37,11 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/callback" element={<CallbackPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/dashboard/actions" element={<ActionsPage />} />
-      <Route path="/dashboard/connections" element={<ConnectionsPage />} />
+      <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="actions" element={<ActionsPage />} />
+        <Route path="connections" element={<ConnectionsPage />} />
+      </Route>
       <Route path="/logout" element={<LogoutPage />} />
     </Routes>
   )

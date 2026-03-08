@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
+import { useMe } from '../hooks/useMe'
+import { getDisplayName } from '../utils/displayName'
 
 const sidebarNav = [
   {
@@ -96,7 +98,9 @@ function SearchIcon({ className }: { className?: string }) {
 export function DashboardSidebar() {
   const [search, setSearch] = useState('')
   const location = useLocation()
-  const { user, logout } = useAuth0()
+  const { user: auth0User, logout } = useAuth0()
+  const { user: meUser } = useMe()
+  const user = meUser ?? auth0User
 
   // Keep all section drawers that have children expanded when on dashboard (so Features stays open when you open Connections, etc.)
   const getExpandedIdsForPath = (pathname: string) => {
@@ -256,7 +260,7 @@ export function DashboardSidebar() {
               />
             )}
             <div className="dashboard-sidebar-user-info">
-              <span className="dashboard-sidebar-user-name">{user?.name ?? user?.email ?? 'Account'}</span>
+              <span className="dashboard-sidebar-user-name">{getDisplayName(user) || 'Account'}</span>
               <span className="dashboard-sidebar-user-meta">Account settings</span>
             </div>
             <ChevronRight className="dashboard-sidebar-chevron" />

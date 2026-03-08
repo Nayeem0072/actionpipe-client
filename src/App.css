@@ -1208,6 +1208,16 @@
   background: var(--surface-glass);
 }
 
+.btn-accent {
+  background: var(--accent);
+  color: var(--bg);
+  border: 2px solid var(--accent);
+}
+
+.btn-accent:hover {
+  opacity: 0.95;
+}
+
 /* Footer — multi-column */
 .footer {
   margin-top: auto;

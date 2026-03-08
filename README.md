@@ -22,7 +22,7 @@ npm run preview   # preview production build
 
 Copy `.env.example` to `.env` and set:
 
-- **Auth0** — `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID` (from Auth0 Dashboard)
+- **Auth0** — `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID` (from Auth0 Dashboard). Set `VITE_AUTH0_AUDIENCE` to your Auth0 API identifier so the frontend can request an access token for the backend and call `GET /me`.
 - **Backend API** — `VITE_API_URL` (optional; defaults to `http://localhost:8000`)
 
 ## Pages & features
@@ -55,6 +55,7 @@ Sidebar nav (as implemented):
 
 ## API integration
 
+- **Me** (`src/api/me.ts`): `getMe(accessToken)` calls `GET /me` with `Authorization: Bearer <access_token>`. Use the `useMe()` hook (`src/hooks/useMe.ts`) after Auth0 login to load the backend user (created/updated on first request).
 - **Runs** (`src/api/runs.ts`): create a run with `createRun({ file, meetingDate?, language? })`, subscribe to progress with `subscribeToRunStream(runId, callbacks)`. SSE events: `progress`, `step_done`, `agent_done`, `run_complete`, `error`. API base from `VITE_API_URL` via `src/api/config.ts`.
 
 ## Stack
