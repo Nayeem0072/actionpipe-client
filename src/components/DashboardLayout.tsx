@@ -64,9 +64,9 @@ export function DashboardLayout() {
 
   return (
     <div className="dashboard-layout">
-      <DashboardSidebar />
+      <DashboardSidebar user={user} meUser={meUser} />
       <main className="dashboard-main">
-        <Outlet context={{ user }} />
+        <Outlet context={{ user, meUser }} />
       </main>
     </div>
   )

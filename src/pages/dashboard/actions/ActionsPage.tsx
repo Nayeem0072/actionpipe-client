@@ -80,14 +80,6 @@ const EXECUTOR_STEP_INDEX: Record<string, number> = {
   mcp_dispatcher: 1,
 }
 
-/** Human-readable label for tool_type (e.g. send_email → "Send email") */
-function formatToolTypeLabel(toolType: string): string {
-  return toolType
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ')
-}
-
 /** Human-readable label for param/label keys (e.g. due_date → "Due Date") */
 function formatLabelKey(key: string): string {
   return key
@@ -474,7 +466,7 @@ export function ActionsPage() {
                     className="btn btn-accent"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? 'Starting…' : 'Next — Start pipeline'}
+                    {isSubmitting ? 'Starting…' : 'Next — Start Pipeline'}
                   </button>
                 </div>
               </form>
@@ -506,7 +498,7 @@ export function ActionsPage() {
                 )}
                 <div className="actions-pipeline-actions">
                   <button type="button" className="btn btn-secondary" onClick={handleBack}>
-                    Back to upload
+                    Back to Upload
                   </button>
                   {pipelineComplete && (
                     <button
@@ -530,7 +522,7 @@ export function ActionsPage() {
               <h2 className="section-title">Actions</h2>
               <p className="section-desc">Actions sent to the executor. Use the button to run or preview.</p>
               <button type="button" className="btn btn-accent actions-back-btn" onClick={() => setStep('pipeline')}>
-                Back to pipeline
+                Back to Pipeline
               </button>
               <p className="actions-executor-total" role="status">
                 Total actions extracted: <b>{executorActions.length}</b>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
-import { useMe } from '../hooks/useMe'
+import type { MeUser } from '../api/me'
+import { useLinkedPerson } from '../hooks/useLinkedPerson'
 import { getDisplayName } from '../utils/displayName'
 
 const sidebarNav = [
@@ -32,7 +33,16 @@ const sidebarNav = [
     icon: IntegrationsIcon,
     children: [
       { label: 'Integrations', href: '/dashboard/integrations' },
-      { label: 'Network', href: '/dashboard/network' },
+    ],
+  },
+  {
+    id: 'organization',
+    label: 'Organization',
+    href: '/#organization',
+    icon: OrganizationIcon,
+    children: [
+      { label: 'People', href: '/dashboard/people' },
+      { label: 'Teams', href: '/dashboard/teams' },
     ],
   },
   { id: 'settings', label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
@@ -59,6 +69,17 @@ function IntegrationsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2v4" /><path d="m6.8 15-3.5 2" /><path d="m20.7 17-3.5-2" /><path d="M6.8 9 3.3 7" /><path d="m20.7 7-3.5 2" /><path d="M12 22v-4" /><path d="m17.2 15 3.5 2" /><path d="m17.2 9 3.5-2" /><path d="m8 12 4-4 4 4" />
+    </svg>
+  )
+}
+
+function OrganizationIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="17" cy="7" r="3" />
+      <path d="M4 21v-2a4 4 0 0 1 4-4h2" />
+      <path d="M20 21v-2a4 4 0 0 0-4-4h-2" />
     </svg>
   )
 }
@@ -96,12 +117,24 @@ function SearchIcon({ className }: { className?: string }) {
   )
 }
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  user: MeUser | { name?: string; email?: string; picture?: string } | null
+  meUser: MeUser | null
+}
+
+export function DashboardSidebar({ user, meUser }: DashboardSidebarProps) {
   const [search, setSearch] = useState('')
   const location = useLocation()
   const { user: auth0User, logout } = useAuth0()
-  const { user: meUser } = useMe()
-  const user = meUser ?? auth0User
+  const { linkedPerson } = useLinkedPerson(meUser)
+  const effectiveUser = user ?? auth0User
+  const isInNetwork = Boolean(meUser?.org_person_id)
+  const networkLabel = linkedPerson
+    ? `In network as ${linkedPerson.name}`
+    : isInNetwork
+      ? 'In contact network'
+      : 'Account settings'
+  const orgName = meUser?.org_name
 
   // Keep all section drawers that have children expanded when on dashboard (so Features stays open when you open Connections, etc.)
   const getExpandedIdsForPath = (pathname: string) => {
@@ -110,6 +143,7 @@ export function DashboardSidebar() {
       set.add('dashboard')
       set.add('features')
       set.add('connections')
+      set.add('organization')
     }
     return set
   }
@@ -180,7 +214,10 @@ export function DashboardSidebar() {
             const isParentActive =
               (item.href === '/dashboard' && location.pathname.startsWith('/dashboard')) ||
               (item.id === 'features' && location.pathname.startsWith('/dashboard/actions')) ||
-              (item.id === 'connections' && (location.pathname.startsWith('/dashboard/integrations') || location.pathname.startsWith('/dashboard/network')))
+              (item.id === 'connections' &&
+                location.pathname.startsWith('/dashboard/integrations')) ||
+              (item.id === 'organization' &&
+                (location.pathname.startsWith('/dashboard/people') || location.pathname.startsWith('/dashboard/teams')))
 
             if (hasChildren) {
               return (
@@ -251,9 +288,9 @@ export function DashboardSidebar() {
 
         <div className="dashboard-sidebar-user">
           <div className="dashboard-sidebar-user-block">
-            {user?.picture && (
+            {effectiveUser?.picture && (
               <img
-                src={user.picture}
+                src={effectiveUser.picture}
                 alt=""
                 width={32}
                 height={32}
@@ -261,8 +298,8 @@ export function DashboardSidebar() {
               />
             )}
             <div className="dashboard-sidebar-user-info">
-              <span className="dashboard-sidebar-user-name">{getDisplayName(user) || 'Account'}</span>
-              <span className="dashboard-sidebar-user-meta">Account settings</span>
+              <span className="dashboard-sidebar-user-name">{getDisplayName(effectiveUser) || 'Account'}</span>
+              <span className="dashboard-sidebar-user-meta">{networkLabel}</span>
             </div>
             <ChevronRight className="dashboard-sidebar-chevron" />
           </div>
@@ -274,6 +311,30 @@ export function DashboardSidebar() {
             Log out
           </button>
         </div>
+
+        {orgName && (
+          <div className="dashboard-sidebar-org">
+            <span className="dashboard-sidebar-user-meta">Organization</span>
+            <div>
+              <span
+                className="dashboard-sidebar-org-label"
+                style={{ color: 'var(--accent-color, var(--accent))' }}
+              >
+                <svg
+                  className="dashboard-sidebar-org-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 640 640"
+                  aria-hidden="true"
+                  fill="currentColor"
+                  style={{ width: '1em', height: '1em', marginRight: 6, verticalAlign: 'middle' }}
+                >
+                  <path d="M144 96C117.5 96 96 117.5 96 144C96 170.5 117.5 192 144 192L296 192L296 232L248 280L176 280C136.2 280 104 312.2 104 352L104 416L96 416C78.3 416 64 430.3 64 448L64 512C64 529.7 78.3 544 96 544L160 544C177.7 544 192 529.7 192 512L192 448C192 430.3 177.7 416 160 416L152 416L152 352C152 338.7 162.7 328 176 328L248 328L296 376L296 416L288 416C270.3 416 256 430.3 256 448L256 512C256 529.7 270.3 544 288 544L352 544C369.7 544 384 529.7 384 512L384 448C384 430.3 369.7 416 352 416L344 416L344 376L392 328L464 328C477.3 328 488 338.7 488 352L488 416L480 416C462.3 416 448 430.3 448 448L448 512C448 529.7 462.3 544 480 544L544 544C561.7 544 576 529.7 576 512L576 448C576 430.3 561.7 416 544 416L536 416L536 352C536 312.2 503.8 280 464 280L392 280L344 232L344 192L496 192C522.5 192 544 170.5 544 144C544 117.5 522.5 96 496 96L144 96z" />
+                </svg>
+                <span className="dashboard-sidebar-org-name">{orgName}</span>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )

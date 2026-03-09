@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { LandingPage } from './pages/landing'
 import { DashboardLayout } from './components/DashboardLayout'
-import { DashboardPage, ActionsPage, IntegrationsPage } from './pages/dashboard'
+import { DashboardPage, ActionsPage, IntegrationsPage, PeoplePage, TeamsPage } from './pages/dashboard'
 import './App.css'
 
 function CallbackPage() {
@@ -41,6 +41,8 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="actions" element={<ActionsPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
+        <Route path="people" element={<PeoplePage />} />
+        <Route path="teams" element={<TeamsPage />} />
       </Route>
       <Route path="/logout" element={<LogoutPage />} />
     </Routes>

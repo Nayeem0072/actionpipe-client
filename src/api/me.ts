@@ -3,10 +3,23 @@ import { getApiBase } from './config'
 export interface MeUser {
   id: string
   org_id: string
+  org_name: string
   email: string
   name: string
   picture: string
   created_at: string
+  /**
+   * All decoded token claims for this user (plus /userinfo fields if enabled).
+   * Use this to access identity data such as given_name, family_name, etc.,
+   * without needing to re-decode the Auth0 token on the client.
+   */
+  claims: Record<string, unknown>
+  /**
+   * Set when this user is linked to an OrgPerson (contact) in the same org.
+   * Use for "you're in the network as …" or merging profile with contact data.
+   * Omitted if backend does not support it yet.
+   */
+  org_person_id?: string | null
 }
 
 export class MeApiError extends Error {

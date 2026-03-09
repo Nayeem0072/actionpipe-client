@@ -1,14 +1,18 @@
 import { Link, useOutletContext } from 'react-router-dom'
 import type { MeUser } from '../../api/me'
 import { getDisplayName } from '../../utils/displayName'
+import { useLinkedPerson } from '../../hooks/useLinkedPerson'
 
 export interface DashboardOutletContext {
-  user: MeUser | { name?: string; email?: string } | null
+  user: MeUser | { name?: string; email?: string; picture?: string } | null
+  meUser: MeUser | null
 }
 
 export function DashboardPage() {
-  const { user } = useOutletContext<DashboardOutletContext>()
+  const { user, meUser } = useOutletContext<DashboardOutletContext>()
+  const { linkedPerson } = useLinkedPerson(meUser)
   const displayName = getDisplayName(user)
+  const isInNetwork = Boolean(meUser?.org_person_id)
 
   return (
     <>
@@ -17,6 +21,13 @@ export function DashboardPage() {
         <p className="dashboard-main-subtitle">
           Hello there{displayName ? <b>{`, ${displayName}`}</b> : ''}. Welcome to your ActionPipe dashboard.
         </p>
+        {isInNetwork && (
+          <p className="dashboard-main-network-badge" role="status">
+            {linkedPerson
+              ? `You're in the contact network as ${linkedPerson.name}.`
+              : 'You\'re in the contact network.'}
+          </p>
+        )}
       </header>
       <div className="dashboard-main-content">
         <section className="section">

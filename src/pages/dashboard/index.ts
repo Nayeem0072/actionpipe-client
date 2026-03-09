@@ -1,3 +1,5 @@
 export { DashboardPage } from './DashboardPage'
 export { ActionsPage } from './actions'
 export { IntegrationsPage } from './integrations'
+export { PeoplePage } from './people'
+export { TeamsPage } from './teams'
