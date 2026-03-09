@@ -37,21 +37,25 @@ Copy `.env.example` to `.env` and set:
 
 ### Dashboard (auth required)
 
-Layout: sidebar + main content. Sidebar has logo, search (UI only), nav, and user block with logout.
+Layout: sidebar + main content. Sidebar has logo, search (UI only), grouped nav drawers, and user block with logout.
 
 | Route | Page | Description |
 |-------|------|-------------|
 | `/dashboard` | **Dashboard** | Welcome message, overview cards (Actions extracted, Executions, Integrations — placeholders), and “Quick start” link to docs. |
 | `/dashboard/actions` | **Actions** | Full pipeline UI: **Step 1** — upload transcript (.txt, .csv, .pdf, .doc), meeting date, language (en/es/fr/de/bn); **Step 2** — live pipeline view with three agents (Extractor → Normalizer → Executor), each with step-by-step progress via SSE; **Step 3** — run complete with summary (actions extracted / normalized). Backend: `POST /runs` (multipart), `GET /runs/:runId/stream` (SSE). |
+| `/dashboard/integrations` | **Integrations** | Placeholder page for integrations / MCP connections. |
+| `/dashboard/people` | **People** | Organization contacts list and details (backed by `/me` + org data). |
+| `/dashboard/teams` | **Teams** | Teams management and membership views. |
 
 Sidebar nav (as implemented):
 
 - **Dashboard** — Overview (`/dashboard`), Reports (`/dashboard/reports` — link only)
 - **Features** — Actions (`/dashboard/actions`)
-- **Integrations** — Connections (`/dashboard/connections` — link only)
+- **Connections** — Integrations (`/dashboard/integrations`)
+- **Organization** — People (`/dashboard/people`), Teams (`/dashboard/teams`)
 - **Settings** — `/dashboard/settings` (link only)
 
-*Note: Reports, Connections, and Settings are linked in the sidebar but do not have route/page implementations yet.*
+*Note: Reports and Settings are linked in the sidebar but do not have route/page implementations yet.*
 
 ## API integration
 
