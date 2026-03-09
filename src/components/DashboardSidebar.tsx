@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import type { MeUser } from '../api/me'
@@ -136,34 +136,32 @@ export function DashboardSidebar({ user, meUser }: DashboardSidebarProps) {
       : 'Account settings'
   const orgName = meUser?.org_name
 
-  // Keep all section drawers that have children expanded when on dashboard (so Features stays open when you open Connections, etc.)
-  const getExpandedIdsForPath = (pathname: string) => {
+  const getActiveParentId = (pathname: string) => {
+    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/reports')) return 'dashboard'
+    if (pathname.startsWith('/dashboard/actions')) return 'features'
+    if (pathname.startsWith('/dashboard/integrations')) return 'connections'
+    if (pathname.startsWith('/dashboard/people') || pathname.startsWith('/dashboard/teams')) return 'organization'
+    return null
+  }
+
+  const getInitialExpandedIds = (pathname: string) => {
     const set = new Set<string>()
-    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
-      set.add('dashboard')
-      set.add('features')
-      set.add('connections')
-      set.add('organization')
+    const activeParentId = getActiveParentId(pathname)
+    if (activeParentId) {
+      set.add(activeParentId)
     }
     return set
   }
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => getExpandedIdsForPath(location.pathname))
-
-  // When route changes, keep the active section expanded (e.g. after clicking Actions or Connections)
-  useEffect(() => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      getExpandedIdsForPath(location.pathname).forEach((id) => next.add(id))
-      return next
-    })
-  }, [location.pathname])
+  // Track which single drawer is expanded; start with only the active parent open (if any)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => getInitialExpandedIds(location.pathname))
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const next = new Set<string>()
+      if (!prev.has(id)) {
+        next.add(id)
+      }
       return next
     })
   }
@@ -211,13 +209,7 @@ export function DashboardSidebar({ user, meUser }: DashboardSidebarProps) {
           {sidebarNav.map((item) => {
             const hasChildren = 'children' in item && item.children?.length
             const isExpanded = expandedIds.has(item.id)
-            const isParentActive =
-              (item.href === '/dashboard' && location.pathname.startsWith('/dashboard')) ||
-              (item.id === 'features' && location.pathname.startsWith('/dashboard/actions')) ||
-              (item.id === 'connections' &&
-                location.pathname.startsWith('/dashboard/integrations')) ||
-              (item.id === 'organization' &&
-                (location.pathname.startsWith('/dashboard/people') || location.pathname.startsWith('/dashboard/teams')))
+            const isParentActive = item.id === getActiveParentId(location.pathname)
 
             if (hasChildren) {
               return (
