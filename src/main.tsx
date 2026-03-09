@@ -7,6 +7,7 @@ import './index.css'
 
 const domain = import.meta.env.VITE_AUTH0_DOMAIN
 const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID
+const audience = import.meta.env.VITE_AUTH0_AUDIENCE
 const redirectUri = window.location.origin + '/callback'
 
 createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
         clientId={clientId ?? ''}
         authorizationParams={{
           redirect_uri: redirectUri,
+          ...(audience ? { audience } : {}),
         }}
       >
         <App />

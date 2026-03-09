@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
+import type { MeUser } from '../api/me'
+import { useLinkedPerson } from '../hooks/useLinkedPerson'
+import { getDisplayName } from '../utils/displayName'
 
 const sidebarNav = [
   {
@@ -24,12 +27,22 @@ const sidebarNav = [
     ],
   },
   {
-    id: 'integrations',
-    label: 'Integrations',
+    id: 'connections',
+    label: 'Connections',
     href: '/#features',
     icon: IntegrationsIcon,
     children: [
-      { label: 'Connections', href: '/dashboard/connections' },
+      { label: 'Integrations', href: '/dashboard/integrations' },
+    ],
+  },
+  {
+    id: 'organization',
+    label: 'Organization',
+    href: '/#organization',
+    icon: OrganizationIcon,
+    children: [
+      { label: 'People', href: '/dashboard/people' },
+      { label: 'Teams', href: '/dashboard/teams' },
     ],
   },
   { id: 'settings', label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
@@ -56,6 +69,17 @@ function IntegrationsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2v4" /><path d="m6.8 15-3.5 2" /><path d="m20.7 17-3.5-2" /><path d="M6.8 9 3.3 7" /><path d="m20.7 7-3.5 2" /><path d="M12 22v-4" /><path d="m17.2 15 3.5 2" /><path d="m17.2 9 3.5-2" /><path d="m8 12 4-4 4 4" />
+    </svg>
+  )
+}
+
+function OrganizationIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="17" cy="7" r="3" />
+      <path d="M4 21v-2a4 4 0 0 1 4-4h2" />
+      <path d="M20 21v-2a4 4 0 0 0-4-4h-2" />
     </svg>
   )
 }
@@ -93,38 +117,51 @@ function SearchIcon({ className }: { className?: string }) {
   )
 }
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  user: MeUser | { name?: string; email?: string; picture?: string } | null
+  meUser: MeUser | null
+}
+
+export function DashboardSidebar({ user, meUser }: DashboardSidebarProps) {
   const [search, setSearch] = useState('')
   const location = useLocation()
-  const { user, logout } = useAuth0()
+  const { user: auth0User, logout } = useAuth0()
+  const { linkedPerson } = useLinkedPerson(meUser)
+  const effectiveUser = user ?? auth0User
+  const isInNetwork = Boolean(meUser?.org_person_id)
+  const networkLabel = linkedPerson
+    ? `In network as ${linkedPerson.name}`
+    : isInNetwork
+      ? 'In contact network'
+      : 'Account settings'
+  const orgName = meUser?.org_name
 
-  // Keep all section drawers that have children expanded when on dashboard (so Features stays open when you open Connections, etc.)
-  const getExpandedIdsForPath = (pathname: string) => {
+  const getActiveParentId = (pathname: string) => {
+    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/reports')) return 'dashboard'
+    if (pathname.startsWith('/dashboard/actions')) return 'features'
+    if (pathname.startsWith('/dashboard/integrations')) return 'connections'
+    if (pathname.startsWith('/dashboard/people') || pathname.startsWith('/dashboard/teams')) return 'organization'
+    return null
+  }
+
+  const getInitialExpandedIds = (pathname: string) => {
     const set = new Set<string>()
-    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
-      set.add('dashboard')
-      set.add('features')
-      set.add('integrations')
+    const activeParentId = getActiveParentId(pathname)
+    if (activeParentId) {
+      set.add(activeParentId)
     }
     return set
   }
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => getExpandedIdsForPath(location.pathname))
-
-  // When route changes, keep the active section expanded (e.g. after clicking Actions or Connections)
-  useEffect(() => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      getExpandedIdsForPath(location.pathname).forEach((id) => next.add(id))
-      return next
-    })
-  }, [location.pathname])
+  // Track which single drawer is expanded; start with only the active parent open (if any)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => getInitialExpandedIds(location.pathname))
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const next = new Set<string>()
+      if (!prev.has(id)) {
+        next.add(id)
+      }
       return next
     })
   }
@@ -172,10 +209,7 @@ export function DashboardSidebar() {
           {sidebarNav.map((item) => {
             const hasChildren = 'children' in item && item.children?.length
             const isExpanded = expandedIds.has(item.id)
-            const isParentActive =
-              (item.href === '/dashboard' && location.pathname.startsWith('/dashboard')) ||
-              (item.id === 'features' && location.pathname.startsWith('/dashboard/actions')) ||
-              (item.id === 'integrations' && location.pathname.startsWith('/dashboard/connections'))
+            const isParentActive = item.id === getActiveParentId(location.pathname)
 
             if (hasChildren) {
               return (
@@ -246,9 +280,9 @@ export function DashboardSidebar() {
 
         <div className="dashboard-sidebar-user">
           <div className="dashboard-sidebar-user-block">
-            {user?.picture && (
+            {effectiveUser?.picture && (
               <img
-                src={user.picture}
+                src={effectiveUser.picture}
                 alt=""
                 width={32}
                 height={32}
@@ -256,8 +290,8 @@ export function DashboardSidebar() {
               />
             )}
             <div className="dashboard-sidebar-user-info">
-              <span className="dashboard-sidebar-user-name">{user?.name ?? user?.email ?? 'Account'}</span>
-              <span className="dashboard-sidebar-user-meta">Account settings</span>
+              <span className="dashboard-sidebar-user-name">{getDisplayName(effectiveUser) || 'Account'}</span>
+              <span className="dashboard-sidebar-user-meta">{networkLabel}</span>
             </div>
             <ChevronRight className="dashboard-sidebar-chevron" />
           </div>
@@ -269,6 +303,20 @@ export function DashboardSidebar() {
             Log out
           </button>
         </div>
+
+        {orgName && (
+          <div className="dashboard-sidebar-org">
+            <span className="dashboard-sidebar-user-meta">Organization</span>
+            <div>
+              <span
+                className="dashboard-sidebar-org-label"
+                style={{ color: 'var(--accent-color, var(--accent))' }}
+              >
+                <span className="dashboard-sidebar-org-name">{orgName}</span>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )

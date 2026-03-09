@@ -1,8 +1,3 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
-import { DashboardSidebar } from '../../../components/DashboardSidebar'
-
 const INTEGRATIONS = [
   {
     id: 'email',
@@ -56,42 +51,23 @@ function NotionIcon({ className }: { className?: string }) {
   )
 }
 
-export function ConnectionsPage() {
-  const { user, isLoading } = useAuth0()
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate('/', { replace: true })
-    }
-  }, [isLoading, user, navigate])
-
+export function IntegrationsPage() {
   const handleConnect = (id: string) => {
-    // Placeholder: connection flow will be implemented later
+    // Placeholder: integration flow will be implemented later
     console.log('Connect:', id)
   }
 
-  if (isLoading || !user) {
-    return (
-      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <p className="section-desc">Loading…</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="dashboard-layout">
-      <DashboardSidebar />
-      <main className="dashboard-main">
-        <header className="dashboard-main-header">
-          <h1 className="dashboard-main-title">Connections</h1>
-          <p className="dashboard-main-subtitle">
-            Connect your tools so ActionPipe can send tasks, create issues, and sync with your workflow.
-          </p>
-        </header>
-        <div className="dashboard-main-content">
+    <>
+      <header className="dashboard-main-header">
+        <h1 className="dashboard-main-title">Integrations</h1>
+        <p className="dashboard-main-subtitle">
+          Connect your tools so ActionPipe can send tasks, create issues, and sync with your workflow.
+        </p>
+      </header>
+      <div className="dashboard-main-content">
           <section className="section">
-            <h2 className="section-title">Connection Points</h2>
+            <h2 className="section-title">Integration Points</h2>
             <div className="section-desc">
               Authorize each service below. You can connect or disconnect at any time from this page.
             </div>
@@ -131,7 +107,6 @@ export function ConnectionsPage() {
             </ul>
           </section>
         </div>
-      </main>
-    </div>
+    </>
   )
 }
