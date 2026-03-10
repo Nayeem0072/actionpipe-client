@@ -76,7 +76,7 @@ export function LandingPage() {
           <h1 className="hero-title">
             From meeting notes
             <br />
-            to <span className="hero-title-done">Done</span> — autonomously.
+            to <span className="hero-title-done">Done</span> — spontaneously.
           </h1>
           <p className="hero-desc">
             Extract structured action items from raw transcripts, normalize them into ready-to-run tool calls, and execute with one click. Emails, calendar events, Jira tasks, Slack messages, and Notion docs — powered by your choice of LLM.
