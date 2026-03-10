@@ -13,6 +13,12 @@ import {
   disconnectCalendar,
   type CalendarStatus,
 } from '../../../api/calendar'
+import {
+  getJiraConnectUrl,
+  getJiraStatus,
+  disconnectJira,
+  type JiraStatus,
+} from '../../../api/jira'
 
 const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined
 
@@ -79,6 +85,8 @@ export function IntegrationsPage() {
   const [slackLoading, setSlackLoading] = useState(false)
   const [calendarStatus, setCalendarStatus] = useState<CalendarStatus | null>(null)
   const [calendarLoading, setCalendarLoading] = useState(false)
+  const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null)
+  const [jiraLoading, setJiraLoading] = useState(false)
   const [connectingId, setConnectingId] = useState<IntegrationId | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +125,19 @@ export function IntegrationsPage() {
     }
   }, [getToken])
 
+  const fetchJiraStatus = useCallback(async () => {
+    setJiraLoading(true)
+    try {
+      const token = await getToken()
+      const status = await getJiraStatus(token)
+      setJiraStatus(status)
+    } catch {
+      // Non-fatal — leave jiraStatus as null (treat as disconnected)
+    } finally {
+      setJiraLoading(false)
+    }
+  }, [getToken])
+
   useEffect(() => {
     if (searchParams.get('slack') === 'connected') {
       setSuccessMessage('Slack connected successfully!')
@@ -136,12 +157,22 @@ export function IntegrationsPage() {
       }, { replace: true })
     }
 
+    if (searchParams.get('jira') === 'connected') {
+      setSuccessMessage('Jira connected successfully!')
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('jira')
+        return next
+      }, { replace: true })
+    }
+
     fetchSlackStatus()
     fetchCalendarStatus()
+    fetchJiraStatus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = async (id: IntegrationId) => {
-    if (id !== 'slack' && id !== 'calendar') return
+    if (id !== 'slack' && id !== 'calendar' && id !== 'jira') return
 
     setConnectingId(id)
     setError(null)
@@ -150,12 +181,15 @@ export function IntegrationsPage() {
       if (id === 'slack') {
         const url = await getSlackConnectUrl(token)
         window.location.href = url
-      } else {
+      } else if (id === 'calendar') {
         const url = await getCalendarConnectUrl(token)
+        window.location.href = url
+      } else {
+        const url = await getJiraConnectUrl(token)
         window.location.href = url
       }
     } catch (err) {
-      const label = id === 'slack' ? 'Slack' : 'Google Calendar'
+      const label = id === 'slack' ? 'Slack' : id === 'calendar' ? 'Google Calendar' : 'Jira'
       setError(err instanceof Error ? err.message : `Failed to start ${label} connection.`)
       setConnectingId(null)
     }
@@ -189,8 +223,23 @@ export function IntegrationsPage() {
     }
   }
 
+  const handleDisconnectJira = async () => {
+    setConnectingId('jira')
+    setError(null)
+    try {
+      const token = await getToken()
+      await disconnectJira(token)
+      setJiraStatus({ connected: false, site_url: null, site_name: null, scope: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Jira.')
+    } finally {
+      setConnectingId(null)
+    }
+  }
+
   const isSlackConnected = slackStatus?.connected === true
   const isCalendarConnected = calendarStatus?.connected === true
+  const isJiraConnected = jiraStatus?.connected === true
 
   return (
     <>
@@ -220,25 +269,33 @@ export function IntegrationsPage() {
             {INTEGRATIONS.map((integration) => {
               const isSlack = integration.id === 'slack'
               const isCalendar = integration.id === 'calendar'
+              const isJira = integration.id === 'jira'
               const connected =
-                (isSlack && isSlackConnected) || (isCalendar && isCalendarConnected)
+                (isSlack && isSlackConnected) ||
+                (isCalendar && isCalendarConnected) ||
+                (isJira && isJiraConnected)
               const loading =
                 (isSlack && (slackLoading || connectingId === 'slack')) ||
-                (isCalendar && (calendarLoading || connectingId === 'calendar'))
+                (isCalendar && (calendarLoading || connectingId === 'calendar')) ||
+                (isJira && (jiraLoading || connectingId === 'jira'))
 
               const connectedSubtitle = isSlack
                 ? slackStatus?.workspace ?? null
                 : isCalendar
                   ? calendarStatus?.email ?? null
-                  : null
+                  : isJira
+                    ? jiraStatus?.site_name ?? null
+                    : null
 
               const handleDisconnect = isSlack
                 ? handleDisconnectSlack
                 : isCalendar
                   ? handleDisconnectCalendar
-                  : undefined
+                  : isJira
+                    ? handleDisconnectJira
+                    : undefined
 
-              const isImplemented = isSlack || isCalendar
+              const isImplemented = isSlack || isCalendar || isJira
 
               return (
                 <li key={integration.id} className="actions-executor-list-item">
