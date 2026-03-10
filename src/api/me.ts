@@ -1,4 +1,4 @@
-import { getApiBase } from './config'
+import { getApiBase, getBaseHeaders } from './config'
 
 export interface MeUser {
   id: string
@@ -42,6 +42,7 @@ export async function getMe(accessToken: string): Promise<MeUser> {
   const res = await fetch(`${base}/me`, {
     method: 'GET',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
     },
   })

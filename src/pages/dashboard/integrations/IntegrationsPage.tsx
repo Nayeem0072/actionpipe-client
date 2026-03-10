@@ -1,3 +1,15 @@
+import { useEffect, useState, useCallback } from 'react'
+import { useAuth0 } from '@auth0/auth0-react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  getSlackConnectUrl,
+  getSlackStatus,
+  disconnectSlack,
+  type SlackStatus,
+} from '../../../api/slack'
+
+const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined
+
 const INTEGRATIONS = [
   {
     id: 'email',
@@ -36,6 +48,8 @@ const INTEGRATIONS = [
   },
 ] as const
 
+type IntegrationId = (typeof INTEGRATIONS)[number]['id']
+
 /** Notion logo SVG (Font Awesome v7 style) */
 function NotionIcon({ className }: { className?: string }) {
   return (
@@ -52,10 +66,81 @@ function NotionIcon({ className }: { className?: string }) {
 }
 
 export function IntegrationsPage() {
-  const handleConnect = (id: string) => {
-    // Placeholder: integration flow will be implemented later
-    console.log('Connect:', id)
+  const { getAccessTokenSilently } = useAuth0()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const [slackStatus, setSlackStatus] = useState<SlackStatus | null>(null)
+  const [slackLoading, setSlackLoading] = useState(false)
+  const [connectingId, setConnectingId] = useState<IntegrationId | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const getToken = useCallback(
+    () =>
+      getAccessTokenSilently(
+        AUDIENCE ? { authorizationParams: { audience: AUDIENCE } } : undefined,
+      ),
+    [getAccessTokenSilently],
+  )
+
+  const fetchSlackStatus = useCallback(async () => {
+    setSlackLoading(true)
+    try {
+      const token = await getToken()
+      const status = await getSlackStatus(token)
+      setSlackStatus(status)
+    } catch {
+      // Non-fatal — leave slackStatus as null (treat as disconnected)
+    } finally {
+      setSlackLoading(false)
+    }
+  }, [getToken])
+
+  useEffect(() => {
+    // Show success banner when redirected back from Slack OAuth
+    if (searchParams.get('slack') === 'connected') {
+      setSuccessMessage('Slack connected successfully!')
+      // Remove the query param from the URL without a page reload
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('slack')
+        return next
+      }, { replace: true })
+    }
+
+    fetchSlackStatus()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConnect = async (id: IntegrationId) => {
+    if (id !== 'slack') return // Other integrations not yet implemented
+
+    setConnectingId(id)
+    setError(null)
+    try {
+      const token = await getToken()
+      const url = await getSlackConnectUrl(token)
+      window.location.href = url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start Slack connection.')
+      setConnectingId(null)
+    }
   }
+
+  const handleDisconnect = async () => {
+    setConnectingId('slack')
+    setError(null)
+    try {
+      const token = await getToken()
+      await disconnectSlack(token)
+      setSlackStatus({ connected: false, workspace: null, slack_user_id: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Slack.')
+    } finally {
+      setConnectingId(null)
+    }
+  }
+
+  const isSlackConnected = slackStatus?.connected === true
 
   return (
     <>
@@ -66,17 +151,32 @@ export function IntegrationsPage() {
         </p>
       </header>
       <div className="dashboard-main-content">
-          <section className="section">
-            <h2 className="section-title">Integration Points</h2>
-            <div className="section-desc">
-              Authorize each service below. You can connect or disconnect at any time from this page.
-            </div>
-            <ul className="actions-executor-list-items">
-              {INTEGRATIONS.map((integration) => (
+        {successMessage && (
+          <div className="network-alert network-alert--success" role="status">
+            <i className="fa-solid fa-circle-check" aria-hidden /> {successMessage}
+          </div>
+        )}
+        {error && (
+          <div className="network-alert network-alert--error" role="alert">
+            {error}
+          </div>
+        )}
+        <section className="section">
+          <h2 className="section-title">Integration Points</h2>
+          <div className="section-desc">
+            Authorize each service below. You can connect or disconnect at any time from this page.
+          </div>
+          <ul className="actions-executor-list-items">
+            {INTEGRATIONS.map((integration) => {
+              const isSlack = integration.id === 'slack'
+              const connected = isSlack && isSlackConnected
+              const loading = isSlack && (slackLoading || connectingId === 'slack')
+
+              return (
                 <li key={integration.id} className="actions-executor-list-item">
                   <div
                     className="actions-executor-card ecosystem-card"
-                    data-connected={false}
+                    data-connected={connected}
                   >
                     <div
                       className="actions-executor-card-icon connections-card-icon"
@@ -89,24 +189,55 @@ export function IntegrationsPage() {
                       )}
                     </div>
                     <div className="actions-executor-card-body connections-card-body">
-                      <h4>{integration.name}</h4>
+                      <h4>
+                        {integration.name}
+                        {connected && (
+                          <span className="integration-connected-badge">
+                            <i className="fa-solid fa-circle-check" aria-hidden /> Connected
+                            {slackStatus?.workspace ? ` · ${slackStatus.workspace}` : ''}
+                          </span>
+                        )}
+                      </h4>
                       <p>{integration.description}</p>
                     </div>
                     <div className="actions-executor-card-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary actions-executor-btn actions-executor-btn-action"
-                        onClick={() => handleConnect(integration.id)}
-                      >
-                        Connect
-                      </button>
+                      {isSlack ? (
+                        connected ? (
+                          <button
+                            type="button"
+                            className="btn btn-secondary actions-executor-btn actions-executor-btn-action"
+                            onClick={handleDisconnect}
+                            disabled={loading}
+                          >
+                            {loading ? 'Disconnecting…' : 'Disconnect'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-primary actions-executor-btn actions-executor-btn-action"
+                            onClick={() => handleConnect('slack')}
+                            disabled={loading}
+                          >
+                            {loading ? 'Connecting…' : 'Connect'}
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary actions-executor-btn actions-executor-btn-action"
+                          disabled
+                        >
+                          Connect
+                        </button>
+                      )}
                     </div>
                   </div>
                 </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+              )
+            })}
+          </ul>
+        </section>
+      </div>
     </>
   )
 }
