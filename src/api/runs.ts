@@ -1,4 +1,4 @@
-import { getApiBase } from './config'
+import { getApiBase, getBaseHeaders } from './config'
 
 export interface CreateRunResponse {
   runId: string
@@ -29,6 +29,7 @@ export async function createRun(
   const res = await fetch(`${base}/runs`, {
     method: 'POST',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
     },
     body: form,

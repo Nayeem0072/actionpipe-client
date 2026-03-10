@@ -2027,6 +2027,26 @@
   color: #ffb3b3;
 }
 
+.network-alert--success {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.integration-connected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  font-size: 0.72em;
+  font-weight: 500;
+  color: #86efac;
+  vertical-align: middle;
+}
+
 .network-grid {
   display: flex;
   flex-direction: column;

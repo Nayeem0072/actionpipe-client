@@ -1,4 +1,4 @@
-import { getApiBase } from './config'
+import { getApiBase, getBaseHeaders } from './config'
 
 export class NetworkApiError extends Error {
   constructor(
@@ -93,6 +93,7 @@ export async function getPerson(
   const res = await fetch(`${base}/network/people/${personId}`, {
     method: 'GET',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
     },
   })
@@ -120,6 +121,7 @@ export async function listPeople(
   const res = await fetch(url.toString(), {
     method: 'GET',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
     },
   })
@@ -136,6 +138,7 @@ export async function createPerson(
   const res = await fetch(`${base}/network/people`, {
     method: 'POST',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
@@ -155,6 +158,7 @@ export async function updatePerson(
   const res = await fetch(`${base}/network/people/${personId}`, {
     method: 'PATCH',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
@@ -169,7 +173,7 @@ export async function deletePerson(accessToken: string, personId: string): Promi
   const base = getApiBase()
   const res = await fetch(`${base}/network/people/${personId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { ...getBaseHeaders(), Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok && res.status !== 204) throw new NetworkApiError(res.status, await readErrorMessage(res))
 }
@@ -190,6 +194,7 @@ export async function listTeams(
   const res = await fetch(url.toString(), {
     method: 'GET',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
     },
   })
@@ -206,6 +211,7 @@ export async function createTeam(
   const res = await fetch(`${base}/network/teams`, {
     method: 'POST',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
@@ -225,6 +231,7 @@ export async function updateTeam(
   const res = await fetch(`${base}/network/teams/${teamId}`, {
     method: 'PATCH',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
@@ -239,7 +246,7 @@ export async function deleteTeam(accessToken: string, teamId: string): Promise<v
   const base = getApiBase()
   const res = await fetch(`${base}/network/teams/${teamId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { ...getBaseHeaders(), Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok && res.status !== 204) throw new NetworkApiError(res.status, await readErrorMessage(res))
 }
@@ -252,7 +259,7 @@ export async function listTeamMembers(
   const base = getApiBase()
   const res = await fetch(`${base}/network/teams/${teamId}/members`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { ...getBaseHeaders(), Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) throw new NetworkApiError(res.status, await readErrorMessage(res))
   return res.json() as Promise<TeamMember[]>
@@ -268,6 +275,7 @@ export async function addPersonToTeam(
   const res = await fetch(`${base}/network/teams/${teamId}/members`, {
     method: 'POST',
     headers: {
+      ...getBaseHeaders(),
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
@@ -286,7 +294,7 @@ export async function removePersonFromTeam(
   const base = getApiBase()
   const res = await fetch(`${base}/network/teams/${teamId}/members/${personId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { ...getBaseHeaders(), Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok && res.status !== 204) throw new NetworkApiError(res.status, await readErrorMessage(res))
 }
