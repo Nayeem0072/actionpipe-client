@@ -4,6 +4,8 @@ import { useAuth0 } from '@auth0/auth0-react'
 import { LandingPage } from './pages/landing'
 import { DashboardLayout } from './components/DashboardLayout'
 import { DashboardPage, ActionsPage, IntegrationsPage, PeoplePage, TeamsPage } from './pages/dashboard'
+import { TermsPage } from './pages/TermsPage'
+import { PrivacyPage } from './pages/PrivacyPage'
 import './App.css'
 
 function CallbackPage() {
@@ -45,6 +47,8 @@ function App() {
         <Route path="teams" element={<TeamsPage />} />
       </Route>
       <Route path="/logout" element={<LogoutPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
     </Routes>
   )
 }

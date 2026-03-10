@@ -30,7 +30,7 @@ export function DashboardLayout() {
   }, [meError, logout])
 
   const isLoading = authLoading || meLoading
-  const user = meUser ?? auth0User
+  const user = meUser ?? auth0User ?? null
 
   if (isLoading || !auth0User) {
     return (

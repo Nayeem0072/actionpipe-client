@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 
 const AUTH0_GOOGLE_CONNECTION = 'google-oauth2'
@@ -264,7 +265,7 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
             <ul>
               <li><a href="#">Documentation</a></li>
               <li><a href="#">API</a></li>
-              <li><a href="#">Privacy</a></li>
+              <li><Link to="/privacy">Privacy</Link></li>
             </ul>
           </div>
           <div className="footer-col">
@@ -276,12 +277,17 @@ actions = extract_actions(transcript_raw=<span className="code-string">"&lt;your
           <div className="footer-col">
             <h4>Legal</h4>
             <ul>
-              <li><a href="#">Terms</a></li>
-              <li><a href="#">Privacy policy</a></li>
+              <li><Link to="/terms">Terms of Use</Link></li>
+              <li><Link to="/privacy">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
-        <p className="footer-bottom">ActionPipe — From meeting notes to done.</p>
+        <p className="footer-bottom">
+          ActionPipe — From meeting notes to done. &nbsp;·&nbsp;{' '}
+          <Link to="/terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</Link>
+          {' '}·{' '}
+          <Link to="/privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</Link>
+        </p>
       </footer>
     </div>
   )
