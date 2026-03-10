@@ -7,6 +7,12 @@ import {
   disconnectSlack,
   type SlackStatus,
 } from '../../../api/slack'
+import {
+  getCalendarConnectUrl,
+  getCalendarStatus,
+  disconnectCalendar,
+  type CalendarStatus,
+} from '../../../api/calendar'
 
 const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined
 
@@ -34,7 +40,7 @@ const INTEGRATIONS = [
   },
   {
     id: 'calendar',
-    name: 'Calendar',
+    name: 'Google Calendar',
     description: 'Read availability and schedule follow-ups from your calendar.',
     iconClass: 'fa-regular fa-calendar-days',
     color: '#4285F4',
@@ -71,6 +77,8 @@ export function IntegrationsPage() {
 
   const [slackStatus, setSlackStatus] = useState<SlackStatus | null>(null)
   const [slackLoading, setSlackLoading] = useState(false)
+  const [calendarStatus, setCalendarStatus] = useState<CalendarStatus | null>(null)
+  const [calendarLoading, setCalendarLoading] = useState(false)
   const [connectingId, setConnectingId] = useState<IntegrationId | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -96,11 +104,22 @@ export function IntegrationsPage() {
     }
   }, [getToken])
 
+  const fetchCalendarStatus = useCallback(async () => {
+    setCalendarLoading(true)
+    try {
+      const token = await getToken()
+      const status = await getCalendarStatus(token)
+      setCalendarStatus(status)
+    } catch {
+      // Non-fatal — leave calendarStatus as null (treat as disconnected)
+    } finally {
+      setCalendarLoading(false)
+    }
+  }, [getToken])
+
   useEffect(() => {
-    // Show success banner when redirected back from Slack OAuth
     if (searchParams.get('slack') === 'connected') {
       setSuccessMessage('Slack connected successfully!')
-      // Remove the query param from the URL without a page reload
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete('slack')
@@ -108,25 +127,41 @@ export function IntegrationsPage() {
       }, { replace: true })
     }
 
+    if (searchParams.get('calendar') === 'connected') {
+      setSuccessMessage('Google Calendar connected successfully!')
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('calendar')
+        return next
+      }, { replace: true })
+    }
+
     fetchSlackStatus()
+    fetchCalendarStatus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = async (id: IntegrationId) => {
-    if (id !== 'slack') return // Other integrations not yet implemented
+    if (id !== 'slack' && id !== 'calendar') return
 
     setConnectingId(id)
     setError(null)
     try {
       const token = await getToken()
-      const url = await getSlackConnectUrl(token)
-      window.location.href = url
+      if (id === 'slack') {
+        const url = await getSlackConnectUrl(token)
+        window.location.href = url
+      } else {
+        const url = await getCalendarConnectUrl(token)
+        window.location.href = url
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start Slack connection.')
+      const label = id === 'slack' ? 'Slack' : 'Google Calendar'
+      setError(err instanceof Error ? err.message : `Failed to start ${label} connection.`)
       setConnectingId(null)
     }
   }
 
-  const handleDisconnect = async () => {
+  const handleDisconnectSlack = async () => {
     setConnectingId('slack')
     setError(null)
     try {
@@ -140,7 +175,22 @@ export function IntegrationsPage() {
     }
   }
 
+  const handleDisconnectCalendar = async () => {
+    setConnectingId('calendar')
+    setError(null)
+    try {
+      const token = await getToken()
+      await disconnectCalendar(token)
+      setCalendarStatus({ connected: false, email: null, scopes: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Google Calendar.')
+    } finally {
+      setConnectingId(null)
+    }
+  }
+
   const isSlackConnected = slackStatus?.connected === true
+  const isCalendarConnected = calendarStatus?.connected === true
 
   return (
     <>
@@ -169,8 +219,26 @@ export function IntegrationsPage() {
           <ul className="actions-executor-list-items">
             {INTEGRATIONS.map((integration) => {
               const isSlack = integration.id === 'slack'
-              const connected = isSlack && isSlackConnected
-              const loading = isSlack && (slackLoading || connectingId === 'slack')
+              const isCalendar = integration.id === 'calendar'
+              const connected =
+                (isSlack && isSlackConnected) || (isCalendar && isCalendarConnected)
+              const loading =
+                (isSlack && (slackLoading || connectingId === 'slack')) ||
+                (isCalendar && (calendarLoading || connectingId === 'calendar'))
+
+              const connectedSubtitle = isSlack
+                ? slackStatus?.workspace ?? null
+                : isCalendar
+                  ? calendarStatus?.email ?? null
+                  : null
+
+              const handleDisconnect = isSlack
+                ? handleDisconnectSlack
+                : isCalendar
+                  ? handleDisconnectCalendar
+                  : undefined
+
+              const isImplemented = isSlack || isCalendar
 
               return (
                 <li key={integration.id} className="actions-executor-list-item">
@@ -194,14 +262,14 @@ export function IntegrationsPage() {
                         {connected && (
                           <span className="integration-connected-badge">
                             <i className="fa-solid fa-circle-check" aria-hidden /> Connected
-                            {slackStatus?.workspace ? ` · ${slackStatus.workspace}` : ''}
+                            {connectedSubtitle ? ` · ${connectedSubtitle}` : ''}
                           </span>
                         )}
                       </h4>
                       <p>{integration.description}</p>
                     </div>
                     <div className="actions-executor-card-actions">
-                      {isSlack ? (
+                      {isImplemented ? (
                         connected ? (
                           <button
                             type="button"
@@ -215,7 +283,7 @@ export function IntegrationsPage() {
                           <button
                             type="button"
                             className="btn btn-primary actions-executor-btn actions-executor-btn-action"
-                            onClick={() => handleConnect('slack')}
+                            onClick={() => handleConnect(integration.id)}
                             disabled={loading}
                           >
                             {loading ? 'Connecting…' : 'Connect'}
