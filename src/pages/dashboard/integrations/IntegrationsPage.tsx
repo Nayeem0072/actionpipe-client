@@ -19,6 +19,12 @@ import {
   disconnectJira,
   type JiraStatus,
 } from '../../../api/jira'
+import {
+  getNotionConnectUrl,
+  getNotionStatus,
+  disconnectNotion,
+  type NotionStatus,
+} from '../../../api/notion'
 
 const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined
 
@@ -87,6 +93,8 @@ export function IntegrationsPage() {
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null)
   const [jiraLoading, setJiraLoading] = useState(false)
+  const [notionStatus, setNotionStatus] = useState<NotionStatus | null>(null)
+  const [notionLoading, setNotionLoading] = useState(false)
   const [connectingId, setConnectingId] = useState<IntegrationId | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -138,6 +146,19 @@ export function IntegrationsPage() {
     }
   }, [getToken])
 
+  const fetchNotionStatus = useCallback(async () => {
+    setNotionLoading(true)
+    try {
+      const token = await getToken()
+      const status = await getNotionStatus(token)
+      setNotionStatus(status)
+    } catch {
+      // Non-fatal — leave notionStatus as null (treat as disconnected)
+    } finally {
+      setNotionLoading(false)
+    }
+  }, [getToken])
+
   useEffect(() => {
     if (searchParams.get('slack') === 'connected') {
       setSuccessMessage('Slack connected successfully!')
@@ -166,13 +187,23 @@ export function IntegrationsPage() {
       }, { replace: true })
     }
 
+    if (searchParams.get('notion') === 'connected') {
+      setSuccessMessage('Notion connected successfully!')
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('notion')
+        return next
+      }, { replace: true })
+    }
+
     fetchSlackStatus()
     fetchCalendarStatus()
     fetchJiraStatus()
+    fetchNotionStatus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = async (id: IntegrationId) => {
-    if (id !== 'slack' && id !== 'calendar' && id !== 'jira') return
+    if (id !== 'slack' && id !== 'calendar' && id !== 'jira' && id !== 'notion') return
 
     setConnectingId(id)
     setError(null)
@@ -184,12 +215,16 @@ export function IntegrationsPage() {
       } else if (id === 'calendar') {
         const url = await getCalendarConnectUrl(token)
         window.location.href = url
-      } else {
+      } else if (id === 'jira') {
         const url = await getJiraConnectUrl(token)
+        window.location.href = url
+      } else {
+        const url = await getNotionConnectUrl(token)
         window.location.href = url
       }
     } catch (err) {
-      const label = id === 'slack' ? 'Slack' : id === 'calendar' ? 'Google Calendar' : 'Jira'
+      const label =
+        id === 'slack' ? 'Slack' : id === 'calendar' ? 'Google Calendar' : id === 'jira' ? 'Jira' : 'Notion'
       setError(err instanceof Error ? err.message : `Failed to start ${label} connection.`)
       setConnectingId(null)
     }
@@ -237,9 +272,24 @@ export function IntegrationsPage() {
     }
   }
 
+  const handleDisconnectNotion = async () => {
+    setConnectingId('notion')
+    setError(null)
+    try {
+      const token = await getToken()
+      await disconnectNotion(token)
+      setNotionStatus({ connected: false, workspace_name: null, workspace_id: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Notion.')
+    } finally {
+      setConnectingId(null)
+    }
+  }
+
   const isSlackConnected = slackStatus?.connected === true
   const isCalendarConnected = calendarStatus?.connected === true
   const isJiraConnected = jiraStatus?.connected === true
+  const isNotionConnected = notionStatus?.connected === true
 
   return (
     <>
@@ -270,14 +320,17 @@ export function IntegrationsPage() {
               const isSlack = integration.id === 'slack'
               const isCalendar = integration.id === 'calendar'
               const isJira = integration.id === 'jira'
+              const isNotion = integration.id === 'notion'
               const connected =
                 (isSlack && isSlackConnected) ||
                 (isCalendar && isCalendarConnected) ||
-                (isJira && isJiraConnected)
+                (isJira && isJiraConnected) ||
+                (isNotion && isNotionConnected)
               const loading =
                 (isSlack && (slackLoading || connectingId === 'slack')) ||
                 (isCalendar && (calendarLoading || connectingId === 'calendar')) ||
-                (isJira && (jiraLoading || connectingId === 'jira'))
+                (isJira && (jiraLoading || connectingId === 'jira')) ||
+                (isNotion && (notionLoading || connectingId === 'notion'))
 
               const connectedSubtitle = isSlack
                 ? slackStatus?.workspace ?? null
@@ -285,7 +338,9 @@ export function IntegrationsPage() {
                   ? calendarStatus?.email ?? null
                   : isJira
                     ? jiraStatus?.site_name ?? null
-                    : null
+                    : isNotion
+                      ? notionStatus?.workspace_name ?? null
+                      : null
 
               const handleDisconnect = isSlack
                 ? handleDisconnectSlack
@@ -293,9 +348,11 @@ export function IntegrationsPage() {
                   ? handleDisconnectCalendar
                   : isJira
                     ? handleDisconnectJira
-                    : undefined
+                    : isNotion
+                      ? handleDisconnectNotion
+                      : undefined
 
-              const isImplemented = isSlack || isCalendar || isJira
+              const isImplemented = isSlack || isCalendar || isJira || isNotion
 
               return (
                 <li key={integration.id} className="actions-executor-list-item">
