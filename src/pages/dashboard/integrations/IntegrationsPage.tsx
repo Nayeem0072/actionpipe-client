@@ -353,12 +353,14 @@ export function IntegrationsPage() {
                       : undefined
 
               const isImplemented = isSlack || isCalendar || isJira || isNotion
+              const isComingSoon = integration.id === 'email'
 
               return (
                 <li key={integration.id} className="actions-executor-list-item">
                   <div
-                    className="actions-executor-card ecosystem-card"
+                    className={`actions-executor-card ecosystem-card${isComingSoon ? ' actions-executor-card--coming-soon' : ''}`}
                     data-connected={connected}
+                    aria-disabled={isComingSoon}
                   >
                     <div
                       className="actions-executor-card-icon connections-card-icon"
@@ -373,6 +375,9 @@ export function IntegrationsPage() {
                     <div className="actions-executor-card-body connections-card-body">
                       <h4>
                         {integration.name}
+                        {isComingSoon && (
+                          <span className="integration-coming-soon-badge">Coming Soon</span>
+                        )}
                         {connected && (
                           <span className="integration-connected-badge">
                             <i className="fa-solid fa-circle-check" aria-hidden /> Connected
@@ -387,7 +392,7 @@ export function IntegrationsPage() {
                         connected ? (
                           <button
                             type="button"
-                            className="btn btn-secondary actions-executor-btn actions-executor-btn-action"
+                            className="btn actions-executor-btn actions-executor-btn-action"
                             onClick={handleDisconnect}
                             disabled={loading}
                           >

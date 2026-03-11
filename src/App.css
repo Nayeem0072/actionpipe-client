@@ -2047,6 +2047,27 @@
   vertical-align: middle;
 }
 
+.integration-coming-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--border);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.actions-executor-card--coming-soon {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
 .network-grid {
   display: flex;
   flex-direction: column;
