@@ -1,4 +1,5 @@
 export { DashboardPage } from './DashboardPage'
+export { TokenUsagePage } from './TokenUsagePage'
 export { ActionsPage } from './actions'
 export { IntegrationsPage } from './integrations'
 export { PeoplePage } from './people'
