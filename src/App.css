@@ -711,19 +711,21 @@
 /* Dashboard layout — Figma Page 6 style, landing color scheme */
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg);
+  overflow: hidden;
 }
 
 .dashboard-sidebar {
   width: 280px;
   flex-shrink: 0;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
 }
 
 .dashboard-sidebar-inner {
@@ -1020,9 +1022,11 @@
 .dashboard-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  overflow: hidden;
 }
 
 .dashboard-main-header {
@@ -1069,6 +1073,230 @@
 
 .dashboard-main .dashboard-cards {
   margin-bottom: 32px;
+}
+
+.dashboard-summary-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-overview-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-overview-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(120, 217, 203, 0.14);
+  color: var(--accent);
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.dashboard-summary-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dashboard-summary-panel {
+  gap: 18px;
+}
+
+.dashboard-summary-panel--highlight {
+  background:
+    linear-gradient(180deg, rgba(120, 217, 203, 0.08) 0%, rgba(120, 217, 203, 0.02) 100%),
+    var(--surface);
+}
+
+.dashboard-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-panel-title {
+  margin-bottom: 0;
+}
+
+.dashboard-panel-subtitle {
+  margin: 6px 0 0;
+}
+
+.dashboard-token-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-token-hero-value {
+  font-size: clamp(1.75rem, 2.8vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.dashboard-token-hero-unit {
+  font-size: 0.42em;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.dashboard-token-hero-meta {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.dashboard-progress-meta {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dashboard-progress {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dashboard-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent) 0%, rgba(120, 217, 203, 0.5) 100%);
+}
+
+.dashboard-progress--unlimited .dashboard-progress-bar {
+  background: linear-gradient(90deg, var(--accent) 0%, #86efac 100%);
+}
+
+.dashboard-token-stats,
+.dashboard-stat-tiles-grid,
+.dashboard-connected-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-connected-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-stat-tiles-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-stat-tile {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.dashboard-stat-tile strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.25rem;
+  color: var(--text);
+}
+
+.dashboard-stat-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-subsection-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dashboard-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-bar-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dashboard-bar-row-header strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.dashboard-bar-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.dashboard-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent) 0%, rgba(120, 217, 203, 0.45) 100%);
+}
+
+.dashboard-bar-fill--secondary {
+  background: linear-gradient(90deg, #86efac 0%, rgba(134, 239, 172, 0.35) 100%);
+}
+
+.dashboard-stage-table {
+  min-width: 560px;
+}
+
+.dashboard-stage-table td,
+.dashboard-stage-table th {
+  white-space: nowrap;
 }
 
 /* Connections page — integration cards */
@@ -1957,6 +2185,15 @@
     grid-template-columns: 1fr;
   }
 
+  .dashboard-overview-cards,
+  .dashboard-summary-grid,
+  .dashboard-token-stats,
+  .dashboard-stat-tiles-grid,
+  .dashboard-connected-grid,
+  .dashboard-stat-tiles-grid--three {
+    grid-template-columns: 1fr;
+  }
+
   .actions-agent-cards {
     grid-template-columns: 1fr;
   }
@@ -1994,6 +2231,13 @@
   .dashboard-main-content {
     padding-left: 20px;
     padding-right: 20px;
+  }
+
+  .dashboard-token-hero,
+  .dashboard-bar-row-header,
+  .dashboard-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

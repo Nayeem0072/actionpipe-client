@@ -14,16 +14,17 @@ const sidebarNav = [
     expanded: true,
     children: [
       { label: 'Overview', href: '/dashboard', activeMatch: '/dashboard' },
-      { label: 'Reports', href: '/dashboard/reports' },
+      { label: 'Token Usage', href: '/dashboard/token-usage' },
+      // { label: 'Reports', href: '/dashboard/reports' },
     ],
   },
   {
     id: 'features',
-    label: 'Features',
+    label: 'Actions',
     href: '/#features',
     icon: FeaturesIcon,
     children: [
-      { label: 'Actions', href: '/dashboard/actions' },
+      { label: 'New Run', href: '/dashboard/actions' },
     ],
   },
   {
@@ -45,7 +46,7 @@ const sidebarNav = [
       { label: 'Teams', href: '/dashboard/teams' },
     ],
   },
-  { id: 'settings', label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
+  // { id: 'settings', label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
 ]
 
 function HomeIcon({ className }: { className?: string }) {
@@ -137,7 +138,11 @@ export function DashboardSidebar({ user, meUser }: DashboardSidebarProps) {
   const orgName = meUser?.org_name
 
   const getActiveParentId = (pathname: string) => {
-    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/reports')) return 'dashboard'
+    if (
+      pathname === '/dashboard' ||
+      pathname.startsWith('/dashboard/token-usage') ||
+      pathname.startsWith('/dashboard/reports')
+    ) return 'dashboard'
     if (pathname.startsWith('/dashboard/actions')) return 'features'
     if (pathname.startsWith('/dashboard/integrations')) return 'connections'
     if (pathname.startsWith('/dashboard/people') || pathname.startsWith('/dashboard/teams')) return 'organization'

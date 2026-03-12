@@ -311,7 +311,7 @@ export function IntegrationsPage() {
           </div>
         )}
         <section className="section">
-          <h2 className="section-title">Integration Points</h2>
+          <h2 className="section-title">Integration Tools</h2>
           <div className="section-desc">
             Authorize each service below. You can connect or disconnect at any time from this page.
           </div>

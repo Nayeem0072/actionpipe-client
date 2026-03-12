@@ -126,9 +126,68 @@ export interface StreamCallbacks {
   onError?(data: ErrorData): void
 }
 
+function dispatchStreamEvent(
+  eventType: string,
+  rawData: string,
+  callbacks: StreamCallbacks
+): boolean {
+  try {
+    const data = JSON.parse(rawData) as unknown
+
+    switch (eventType) {
+      case 'progress':
+        callbacks.onProgress?.(data as ProgressData)
+        return false
+      case 'step_done':
+        callbacks.onStepDone?.(data as StepDoneData)
+        return false
+      case 'agent_done':
+        callbacks.onAgentDone?.(data as AgentDoneData)
+        return false
+      case 'run_complete':
+        callbacks.onRunComplete?.(data as RunCompleteData)
+        return true
+      case 'error':
+        callbacks.onError?.(data as ErrorData)
+        return true
+      default:
+        // Some servers may emit unnamed events with error-shaped payloads.
+        if (data && typeof data === 'object' && 'message' in data) {
+          callbacks.onError?.(data as ErrorData)
+          return true
+        }
+        return false
+    }
+  } catch (e) {
+    console.error('SSE parse error', e)
+    return false
+  }
+}
+
+function processSseChunk(chunk: string, callbacks: StreamCallbacks): boolean {
+  let eventType = 'message'
+  const dataLines: string[] = []
+
+  for (const line of chunk.split(/\r?\n/)) {
+    if (!line || line.startsWith(':')) continue
+
+    if (line.startsWith('event:')) {
+      eventType = line.slice(6).trim() || 'message'
+      continue
+    }
+
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart())
+    }
+  }
+
+  if (dataLines.length === 0) return false
+  return dispatchStreamEvent(eventType, dataLines.join('\n'), callbacks)
+}
+
 /**
- * Subscribe to GET /runs/{runId}/stream via EventSource.
- * EventSource does not support custom headers, so the token is sent as a query param.
+ * Subscribe to GET /runs/{runId}/stream via fetch + ReadableStream.
+ * This allows sending ngrok bypass headers that EventSource cannot attach.
  * Calls the appropriate callback for each SSE event type.
  * Returns an unsubscribe function.
  */
@@ -139,52 +198,72 @@ export function subscribeToRunStream(
 ): () => void {
   const base = getApiBase()
   const url = `${base}/runs/${runId}/stream?token=${encodeURIComponent(accessToken)}`
-  const es = new EventSource(url)
+  const controller = new AbortController()
+  let closed = false
 
-  function handleEvent(event: MessageEvent<string>) {
+  void (async () => {
     try {
-      const data = JSON.parse(event.data) as unknown
-      const eventType = (event.type || 'message') as string
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...getBaseHeaders(),
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'text/event-stream',
+        },
+        signal: controller.signal,
+      })
 
-      switch (eventType) {
-        case 'progress':
-          callbacks.onProgress?.(data as ProgressData)
-          break
-        case 'step_done':
-          callbacks.onStepDone?.(data as StepDoneData)
-          break
-        case 'agent_done':
-          callbacks.onAgentDone?.(data as AgentDoneData)
-          break
-        case 'run_complete':
-          callbacks.onRunComplete?.(data as RunCompleteData)
-          es.close()
-          break
-        case 'error':
-          callbacks.onError?.(data as ErrorData)
-          es.close()
-          break
-        default:
-          // e.g. default "message" event might carry run_complete
-          if (data && typeof data === 'object' && 'message' in data) {
-            callbacks.onError?.(data as ErrorData)
-            es.close()
-          }
+      if (!res.ok) {
+        const message = await res.text()
+        if (!closed) {
+          callbacks.onError?.({
+            message: message || `Stream connection failed (${res.status} ${res.statusText})`,
+          })
+        }
+        return
       }
-    } catch (e) {
-      console.error('SSE parse error', e)
+
+      if (!res.body) {
+        if (!closed) callbacks.onError?.({ message: 'Stream response had no body' })
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (!closed) {
+        const { value, done } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const chunks = buffer.split(/\r?\n\r?\n/)
+        buffer = chunks.pop() ?? ''
+
+        for (const chunk of chunks) {
+          if (processSseChunk(chunk, callbacks)) {
+            closed = true
+            controller.abort()
+            return
+          }
+        }
+      }
+
+      buffer += decoder.decode()
+      if (!closed && buffer.trim()) {
+        processSseChunk(buffer, callbacks)
+      }
+    } catch (error) {
+      if (closed || controller.signal.aborted) return
+
+      const message =
+        error instanceof Error ? error.message : 'Stream connection failed'
+      callbacks.onError?.({ message })
     }
+  })()
+
+  return () => {
+    closed = true
+    controller.abort()
   }
-
-  es.addEventListener('progress', handleEvent)
-  es.addEventListener('step_done', handleEvent)
-  es.addEventListener('agent_done', handleEvent)
-  es.addEventListener('run_complete', handleEvent)
-  es.addEventListener('error', (e) => {
-    if ('data' in e && e.data) handleEvent(e as MessageEvent<string>)
-    else callbacks.onError?.({ message: 'Stream connection failed' })
-    es.close()
-  })
-
-  return () => es.close()
 }

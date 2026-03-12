@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { LandingPage } from './pages/landing'
 import { DashboardLayout } from './components/DashboardLayout'
-import { DashboardPage, ActionsPage, IntegrationsPage, PeoplePage, TeamsPage } from './pages/dashboard'
+import { DashboardPage, TokenUsagePage, ActionsPage, IntegrationsPage, PeoplePage, TeamsPage } from './pages/dashboard'
 import { TermsPage } from './pages/TermsPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import './App.css'
@@ -41,6 +41,7 @@ function App() {
       <Route path="/callback" element={<CallbackPage />} />
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="token-usage" element={<TokenUsagePage />} />
         <Route path="actions" element={<ActionsPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="people" element={<PeoplePage />} />
