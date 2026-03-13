@@ -44,12 +44,12 @@ export function LandingPage() {
             </span>
             <span className="logo-text">ActionPipe</span>
           </a>
-          <nav className="nav">
+          {/* <nav className="nav">
             <a href="#how-it-works">How it works</a>
             <a href="#features">Features</a>
             <a href="#try-it">Try it</a>
             <a href="#try-it">Get started</a>
-          </nav>
+          </nav> */}
           <div className="header-actions">
             {!isLoading && (
               isAuthenticated && user ? (
