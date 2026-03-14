@@ -1979,6 +1979,21 @@
   margin: 0;
 }
 
+.actions-executor-display-name {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.actions-executor-display-name-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.actions-executor-display-name-value {
+  color: var(--text);
+}
+
 .actions-executor-param {
   display: grid;
   grid-template-columns: minmax(100px, auto) 1fr;
