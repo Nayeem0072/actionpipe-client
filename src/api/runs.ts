@@ -92,6 +92,14 @@ export interface ExecutorAction {
   response: Record<string, unknown> | null
   error: string | null
   labels?: string[]
+  /** Jira: display name of the assignee */
+  assignee_display_name?: string
+  /** Jira: assignee user/account id (backend sends as assignee) */
+  assignee?: string
+  /** Slack: display name of the recipient */
+  recipient_display_name?: string
+  /** Slack: recipient user id (backend sends as recipient, e.g. U0AKYDAC3U4) */
+  recipient?: string
 }
 
 export interface RunCompleteData {

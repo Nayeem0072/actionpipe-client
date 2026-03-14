@@ -535,16 +535,52 @@ export function ActionsPage() {
                         <ActionIcon toolType={action.tool_type} server={action.server} />
                       </div>
                       <div className="actions-executor-card-body">
-                        {action.params && typeof action.params === 'object' && (() => {
-                          const entries = Object.entries(action.params).filter(([key]) => key !== 'labels')
-                          if (entries.length === 0) return null
+                        {(() => {
+                          const params = action.params && typeof action.params === 'object' ? action.params as Record<string, unknown> : {}
+                          const assignee = (params.assignee ?? action.assignee) as string | undefined
+                          const assigneeDisplayName = (params.assignee_display_name ?? action.assignee_display_name) as string | undefined
+                          const recipient = (params.recipient ?? action.recipient) as string | undefined
+                          const recipientDisplayName = (params.recipient_display_name ?? action.recipient_display_name) as string | undefined
+                          const to = params.to as string | undefined
+                          const toDisplayName = params.to_display_name as string | undefined
+                          const isJira = (action.server ?? '').toLowerCase().includes('jira') || (action.tool_type ?? '').toLowerCase().includes('jira')
+                          const isSlack = (action.server ?? '').toLowerCase().includes('slack') || (action.tool_type ?? '').toLowerCase().includes('slack')
+                          const isEmail = (action.server ?? '').toLowerCase().includes('gmail') || (action.tool_type ?? '').toLowerCase().includes('email')
+                          const paramKeysToHide = new Set(['labels', 'assignee', 'assignee_display_name', 'recipient', 'recipient_display_name', 'to', 'to_display_name'])
+                          const paramEntries = action.params && typeof action.params === 'object'
+                            ? Object.entries(action.params).filter(([key]) => !paramKeysToHide.has(key))
+                            : []
+                          const assigneeRow = isJira && (assigneeDisplayName != null || assignee != null)
+                            ? { key: 'assignee', value: assigneeDisplayName ?? 'N/A', id: assignee }
+                            : null
+                          const recipientRow = isSlack && (recipientDisplayName != null || recipient != null)
+                            ? { key: 'recipient', value: recipientDisplayName ?? 'N/A', id: recipient }
+                            : null
+                          const toRow = isEmail && (toDisplayName != null || to != null)
+                            ? { key: 'to', value: toDisplayName ?? 'N/A', id: to }
+                            : null
+                          const allRows: Array<{ key: string; value: unknown; id?: string }> = [
+                            ...(assigneeRow ? [assigneeRow] : []),
+                            ...(recipientRow ? [recipientRow] : []),
+                            ...(toRow ? [toRow] : []),
+                            ...paramEntries.map(([key, value]) => ({ key, value })),
+                          ]
+                          if (allRows.length === 0) return null
                           return (
                             <dl className="actions-executor-params">
-                              {entries.map(([key, value]) => (
-                                <div key={key} className="actions-executor-param">
-                                  <dt className="actions-executor-param-key">{formatLabelKey(key)}</dt>
+                              {allRows.map((row) => (
+                                <div key={row.key} className="actions-executor-param">
+                                  <dt className="actions-executor-param-key">{formatLabelKey(row.key)}</dt>
                                   <dd className="actions-executor-param-value">
-                                    <ParamValue value={value} />
+                                    {'id' in row && row.id != null && row.id !== '' ? (
+                                      <>
+                                        <ParamValue value={row.value} />
+                                        {' '}
+                                        <em className="actions-executor-participants-email">({row.id})</em>
+                                      </>
+                                    ) : (
+                                      <ParamValue value={row.value} />
+                                    )}
                                   </dd>
                                 </div>
                               ))}
