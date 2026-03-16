@@ -50,6 +50,46 @@ export async function createRun(
   return res.json() as Promise<CreateRunResponse>
 }
 
+export interface ExecuteActionsResponse {
+  executor_actions: ExecutorAction[]
+}
+
+/**
+ * Execute selected Slack actions for a completed run.
+ * POST /runs/{runId}/actions/execute
+ * Only actions with server "slack" (e.g. tool_type send_notification) can be executed.
+ */
+export async function executeRunActions(
+  runId: string,
+  actionIds: string[],
+  accessToken: string
+): Promise<ExecuteActionsResponse> {
+  const base = getApiBase()
+  const res = await fetch(`${base}/runs/${runId}/actions/execute`, {
+    method: 'POST',
+    headers: {
+      ...getBaseHeaders(),
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ actionIds }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text
+    try {
+      const json = JSON.parse(text) as { detail?: string; message?: string }
+      message = json.detail ?? json.message ?? text
+    } catch {
+      // use text as-is
+    }
+    throw new RunApiError(res.status, message)
+  }
+
+  return res.json() as Promise<ExecuteActionsResponse>
+}
+
 export class RunApiError extends Error {
   constructor(
     public status: number,
