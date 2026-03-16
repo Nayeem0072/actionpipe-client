@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
-import { createRun, subscribeToRunStream, RunApiError } from '../../../api/runs'
+import { createRun, subscribeToRunStream, executeRunActions, RunApiError } from '../../../api/runs'
 import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData, ExecutorAction } from '../../../api/runs'
 
 type StepStatus = 'pending' | 'done' | 'ongoing'
@@ -195,10 +195,12 @@ export function ActionsPage() {
   const [uploadFormKey, setUploadFormKey] = useState(0)
   const [meetingDate, setMeetingDate] = useState('')
   const [language, setLanguage] = useState('en')
+  const [runId, setRunId] = useState<string | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
   const [runComplete, setRunComplete] = useState(false)
   const [runSummary, setRunSummary] = useState<RunCompleteData['summary']>(undefined)
   const [executorActions, setExecutorActions] = useState<ExecutorAction[]>([])
+  const [executingActionIds, setExecutingActionIds] = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [agents, setAgents] = useState<AgentCardState[]>(() =>
     buildAgentState(
@@ -300,7 +302,7 @@ export function ActionsPage() {
       const token = await getAccessTokenSilently(
         audience ? { authorizationParams: { audience } } : undefined
       )
-      const { runId } = await createRun(
+      const { runId: newRunId } = await createRun(
         {
           file,
           meetingDate: meetingDate || undefined,
@@ -308,8 +310,9 @@ export function ActionsPage() {
         },
         token
       )
+      setRunId(newRunId)
       setStep('pipeline')
-      const unsubscribe = subscribeToRunStream(runId, token, {
+      const unsubscribe = subscribeToRunStream(newRunId, token, {
         onProgress: applyProgress,
         onStepDone: applyStepDone,
         onAgentDone: applyAgentDone,
@@ -339,6 +342,42 @@ export function ActionsPage() {
     }
   }
 
+  const handleAcceptAction = async (action: ExecutorAction) => {
+    const server = (action.server ?? '').toLowerCase()
+    const isSlack = server.includes('slack') || (action.tool_type ?? '').toLowerCase().includes('send_notification')
+    if (!isSlack || !runId) return
+
+    setRunError(null)
+    setExecutingActionIds((prev) => new Set(prev).add(action.id))
+    try {
+      const audience = import.meta.env.VITE_AUTH0_AUDIENCE
+      const token = await getAccessTokenSilently(
+        audience ? { authorizationParams: { audience } } : undefined
+      )
+      const { executor_actions: result } = await executeRunActions(runId, [action.id], token)
+      setExecutorActions((prev) =>
+        prev.map((a) => {
+          const updated = result.find((r) => r.id === a.id)
+          return updated ?? a
+        })
+      )
+    } catch (err) {
+      const message =
+        err instanceof RunApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to execute action'
+      setRunError(message)
+    } finally {
+      setExecutingActionIds((prev) => {
+        const next = new Set(prev)
+        next.delete(action.id)
+        return next
+      })
+    }
+  }
+
   const handleBack = () => {
     if (unsubscribeStreamRef.current) {
       unsubscribeStreamRef.current()
@@ -346,10 +385,12 @@ export function ActionsPage() {
     }
     setStep('upload')
     setFile(null)
+    setRunId(null)
     setRunError(null)
     setRunComplete(false)
     setRunSummary(undefined)
     setExecutorActions([])
+    setExecutingActionIds(new Set())
     setUploadFormKey((k) => k + 1)
     setAgents(
       buildAgentState(
@@ -524,11 +565,20 @@ export function ActionsPage() {
               <button type="button" className="btn btn-accent actions-back-btn" onClick={() => setStep('pipeline')}>
                 Back to Pipeline
               </button>
+              {runError && (
+                <p className="actions-run-error" role="alert">
+                  {runError}
+                </p>
+              )}
               <p className="actions-executor-total" role="status">
                 Total actions extracted: <b>{executorActions.length}</b>
               </p>
               <ul className="actions-executor-list-items">
-                {executorActions.map((action) => (
+                {executorActions.map((action) => {
+                  const isSlack = (action.server ?? '').toLowerCase().includes('slack') || (action.tool_type ?? '').toLowerCase().includes('send_notification')
+                  const canAcceptSlack = isSlack && runId != null && action.status !== 'success'
+                  const isExecuting = executingActionIds.has(action.id)
+                  return (
                   <li key={action.id} className="actions-executor-list-item">
                     <div className="actions-executor-card ecosystem-card">
                       <div className="actions-executor-card-icon">
@@ -544,7 +594,6 @@ export function ActionsPage() {
                           const to = params.to as string | undefined
                           const toDisplayName = params.to_display_name as string | undefined
                           const isJira = (action.server ?? '').toLowerCase().includes('jira') || (action.tool_type ?? '').toLowerCase().includes('jira')
-                          const isSlack = (action.server ?? '').toLowerCase().includes('slack') || (action.tool_type ?? '').toLowerCase().includes('slack')
                           const isEmail = (action.server ?? '').toLowerCase().includes('gmail') || (action.tool_type ?? '').toLowerCase().includes('email')
                           const paramKeysToHide = new Set(['labels', 'assignee', 'assignee_display_name', 'recipient', 'recipient_display_name', 'to', 'to_display_name'])
                           const paramEntries = action.params && typeof action.params === 'object'
@@ -602,8 +651,13 @@ export function ActionsPage() {
                         </div>
                       </div>
                       <div className="actions-executor-card-actions">
-                        <button type="button" className="btn btn-primary actions-executor-btn actions-executor-btn-action">
-                          Accept
+                        <button
+                          type="button"
+                          className="btn btn-primary actions-executor-btn actions-executor-btn-action"
+                          disabled={!canAcceptSlack || isExecuting}
+                          onClick={() => handleAcceptAction(action)}
+                        >
+                          {isExecuting ? 'Executing…' : 'Accept'}
                         </button>
                         <button type="button" className="btn actions-executor-btn actions-executor-btn-modify">
                           Modify
@@ -614,7 +668,8 @@ export function ActionsPage() {
                       </div>
                     </div>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             </section>
           )}
