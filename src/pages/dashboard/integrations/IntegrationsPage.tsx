@@ -404,14 +404,16 @@ export function IntegrationsPage() {
                       ? handleDisconnectNotion
                       : undefined
 
-              const isImplemented = isSlack || isCalendar || isJira || isNotion
-              const isComingSoon = integration.id === 'email'
+              const isComingSoon =
+                integration.id === 'email' || integration.id === 'notion' || integration.id === 'calendar'
+              const isImplemented = isSlack || isJira
+              const connectedForUI = connected && !isComingSoon
 
               return (
                 <li key={integration.id} className="actions-executor-list-item">
                   <div
                     className={`actions-executor-card ecosystem-card${isComingSoon ? ' actions-executor-card--coming-soon' : ''}`}
-                    data-connected={connected}
+                    data-connected={connectedForUI}
                     aria-disabled={isComingSoon}
                   >
                     <div
@@ -430,7 +432,7 @@ export function IntegrationsPage() {
                         {isComingSoon && (
                           <span className="integration-coming-soon-badge">Coming Soon</span>
                         )}
-                        {connected && (
+                        {connectedForUI && (
                           <span className="integration-connected-badge">
                             <i className="fa-solid fa-circle-check" aria-hidden /> Connected
                             {connectedSubtitle ? ` · ${connectedSubtitle}` : ''}
