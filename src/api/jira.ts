@@ -5,6 +5,7 @@ export interface JiraStatus {
   site_url: string | null
   site_name: string | null
   scope: string | null
+  project_key: string | null
 }
 
 export class JiraApiError extends Error {
@@ -50,4 +51,43 @@ export async function disconnectJira(accessToken: string): Promise<void> {
   })
   if (!res.ok && res.status !== 204)
     throw new JiraApiError(res.status, await readErrorMessage(res))
+}
+
+export interface JiraProject {
+  key: string
+  name: string
+  type: string
+  style: string
+}
+
+export interface JiraProjectsResponse {
+  projects: JiraProject[]
+  saved_project_key: string | null
+}
+
+export async function getJiraProjects(accessToken: string): Promise<JiraProjectsResponse> {
+  const base = getApiBase()
+  const res = await fetch(`${base}/jira/projects`, {
+    headers: { ...getBaseHeaders(), Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) throw new JiraApiError(res.status, await readErrorMessage(res))
+  return res.json() as Promise<JiraProjectsResponse>
+}
+
+export async function patchJiraSettings(
+  accessToken: string,
+  projectKey: string,
+): Promise<{ project_key: string }> {
+  const base = getApiBase()
+  const res = await fetch(`${base}/jira/settings`, {
+    method: 'PATCH',
+    headers: {
+      ...getBaseHeaders(),
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ project_key: projectKey }),
+  })
+  if (!res.ok) throw new JiraApiError(res.status, await readErrorMessage(res))
+  return res.json() as Promise<{ project_key: string }>
 }

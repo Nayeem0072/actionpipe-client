@@ -1687,6 +1687,28 @@
   padding-right: 36px;
 }
 
+/* Jira integrations project picker (compact UI) */
+.jira-project-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* `ecosystem-card .btn` adds `margin-top: 12px`; override it for inline layout */
+.jira-project-save-btn {
+  margin-top: 0 !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+  font-size: 12px !important;
+  line-height: 1.2;
+}
+
+.jira-project-select {
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+  font-size: 12px !important;
+}
+
 .actions-file-input {
   padding: 7px 14px;
   font-family: var(--font);
@@ -1997,7 +2019,7 @@
 .actions-executor-param {
   display: grid;
   grid-template-columns: minmax(100px, auto) 1fr;
-  gap: 8px 16px;
+  /* gap: 8px 16px; */
   align-items: baseline;
 }
 

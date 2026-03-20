@@ -90,6 +90,42 @@ export async function executeRunActions(
   return res.json() as Promise<ExecuteActionsResponse>
 }
 
+/**
+ * Execute selected Jira actions for a completed run.
+ * POST /runs/{runId}/jira_actions/execute
+ * Only actions with server "jira" (tool type create_jira_task) can be executed.
+ */
+export async function executeRunJiraActions(
+  runId: string,
+  actionIds: string[],
+  accessToken: string
+): Promise<ExecuteActionsResponse> {
+  const base = getApiBase()
+  const res = await fetch(`${base}/runs/${runId}/jira_actions/execute`, {
+    method: 'POST',
+    headers: {
+      ...getBaseHeaders(),
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ actionIds }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text
+    try {
+      const json = JSON.parse(text) as { detail?: string; message?: string }
+      message = json.detail ?? json.message ?? text
+    } catch {
+      // use text as-is
+    }
+    throw new RunApiError(res.status, message)
+  }
+
+  return res.json() as Promise<ExecuteActionsResponse>
+}
+
 export class RunApiError extends Error {
   constructor(
     public status: number,
