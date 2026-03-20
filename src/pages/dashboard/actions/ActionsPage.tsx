@@ -1,6 +1,12 @@
 import { useState, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
-import { createRun, subscribeToRunStream, executeRunActions, RunApiError } from '../../../api/runs'
+import {
+  createRun,
+  subscribeToRunStream,
+  executeRunActions,
+  executeRunJiraActions,
+  RunApiError,
+} from '../../../api/runs'
 import type { ProgressData, StepDoneData, AgentDoneData, ErrorData, RunCompleteData, ExecutorAction } from '../../../api/runs'
 
 type StepStatus = 'pending' | 'done' | 'ongoing'
@@ -344,8 +350,10 @@ export function ActionsPage() {
 
   const handleAcceptAction = async (action: ExecutorAction) => {
     const server = (action.server ?? '').toLowerCase()
-    const isSlack = server.includes('slack') || (action.tool_type ?? '').toLowerCase().includes('send_notification')
-    if (!isSlack || !runId) return
+    const toolType = (action.tool_type ?? '').toLowerCase()
+    const isSlack = server.includes('slack') || toolType.includes('send_notification')
+    const isJira = server.includes('jira') || toolType.includes('jira')
+    if ((!isSlack && !isJira) || !runId) return
 
     setRunError(null)
     setExecutingActionIds((prev) => new Set(prev).add(action.id))
@@ -354,7 +362,9 @@ export function ActionsPage() {
       const token = await getAccessTokenSilently(
         audience ? { authorizationParams: { audience } } : undefined
       )
-      const { executor_actions: result } = await executeRunActions(runId, [action.id], token)
+      const { executor_actions: result } = isSlack
+        ? await executeRunActions(runId, [action.id], token)
+        : await executeRunJiraActions(runId, [action.id], token)
       setExecutorActions((prev) =>
         prev.map((a) => {
           const updated = result.find((r) => r.id === a.id)
@@ -575,8 +585,13 @@ export function ActionsPage() {
               </p>
               <ul className="actions-executor-list-items">
                 {executorActions.map((action) => {
-                  const isSlack = (action.server ?? '').toLowerCase().includes('slack') || (action.tool_type ?? '').toLowerCase().includes('send_notification')
+                  const server = (action.server ?? '').toLowerCase()
+                  const toolType = (action.tool_type ?? '').toLowerCase()
+                  const isSlack = server.includes('slack') || toolType.includes('send_notification')
+                  const isJira = server.includes('jira') || toolType.includes('jira')
                   const canAcceptSlack = isSlack && runId != null && action.status !== 'success'
+                  const canAcceptJira = isJira && runId != null && action.status !== 'success'
+                  const canAccept = canAcceptSlack || canAcceptJira
                   const isExecuting = executingActionIds.has(action.id)
                   return (
                   <li key={action.id} className="actions-executor-list-item">
@@ -654,7 +669,7 @@ export function ActionsPage() {
                         <button
                           type="button"
                           className="btn btn-primary actions-executor-btn actions-executor-btn-action"
-                          disabled={!canAcceptSlack || isExecuting}
+                          disabled={!canAccept || isExecuting}
                           onClick={() => handleAcceptAction(action)}
                         >
                           {isExecuting ? 'Executing…' : 'Accept'}

@@ -16,7 +16,10 @@ import {
 import {
   getJiraConnectUrl,
   getJiraStatus,
+  getJiraProjects,
+  patchJiraSettings,
   disconnectJira,
+  type JiraProject,
   type JiraStatus,
 } from '../../../api/jira'
 import {
@@ -93,6 +96,10 @@ export function IntegrationsPage() {
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null)
   const [jiraLoading, setJiraLoading] = useState(false)
+  const [jiraProjects, setJiraProjects] = useState<JiraProject[] | null>(null)
+  const [jiraProjectsLoading, setJiraProjectsLoading] = useState(false)
+  const [jiraSelectedProjectKey, setJiraSelectedProjectKey] = useState<string | null>(null)
+  const [jiraSavingProject, setJiraSavingProject] = useState(false)
   const [notionStatus, setNotionStatus] = useState<NotionStatus | null>(null)
   const [notionLoading, setNotionLoading] = useState(false)
   const [connectingId, setConnectingId] = useState<IntegrationId | null>(null)
@@ -139,10 +146,29 @@ export function IntegrationsPage() {
       const token = await getToken()
       const status = await getJiraStatus(token)
       setJiraStatus(status)
+      setJiraSelectedProjectKey(status.project_key)
     } catch {
       // Non-fatal — leave jiraStatus as null (treat as disconnected)
+      setJiraProjects(null)
+      setJiraSelectedProjectKey(null)
     } finally {
       setJiraLoading(false)
+    }
+  }, [getToken])
+
+  const fetchJiraProjects = useCallback(async () => {
+    setJiraProjectsLoading(true)
+    try {
+      const token = await getToken()
+      const data = await getJiraProjects(token)
+      setJiraProjects(data.projects)
+      setJiraSelectedProjectKey(data.saved_project_key)
+    } catch {
+      // Non-fatal — treat as "not configured yet"
+      setJiraProjects(null)
+      setJiraSelectedProjectKey(null)
+    } finally {
+      setJiraProjectsLoading(false)
     }
   }, [getToken])
 
@@ -179,7 +205,7 @@ export function IntegrationsPage() {
     }
 
     if (searchParams.get('jira') === 'connected') {
-      setSuccessMessage('Jira connected successfully!')
+      setSuccessMessage('Jira connected successfully! Set your default project below.')
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete('jira')
@@ -201,6 +227,10 @@ export function IntegrationsPage() {
     fetchJiraStatus()
     fetchNotionStatus()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (jiraStatus?.connected) fetchJiraProjects()
+  }, [jiraStatus?.connected, fetchJiraProjects])
 
   const handleConnect = async (id: IntegrationId) => {
     if (id !== 'slack' && id !== 'calendar' && id !== 'jira' && id !== 'notion') return
@@ -264,11 +294,32 @@ export function IntegrationsPage() {
     try {
       const token = await getToken()
       await disconnectJira(token)
-      setJiraStatus({ connected: false, site_url: null, site_name: null, scope: null })
+      setJiraStatus({ connected: false, site_url: null, site_name: null, scope: null, project_key: null })
+      setJiraProjects(null)
+      setJiraSelectedProjectKey(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect Jira.')
     } finally {
       setConnectingId(null)
+    }
+  }
+
+  const handleSaveJiraProject = async () => {
+    const projectKey = jiraSelectedProjectKey ?? jiraStatus?.project_key
+    if (!projectKey) return
+
+    setJiraSavingProject(true)
+    setError(null)
+    try {
+      const token = await getToken()
+      await patchJiraSettings(token, projectKey.toUpperCase())
+      setSuccessMessage('Jira default project saved.')
+      await fetchJiraStatus()
+      await fetchJiraProjects()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save Jira default project.')
+    } finally {
+      setJiraSavingProject(false)
     }
   }
 
@@ -290,6 +341,7 @@ export function IntegrationsPage() {
   const isCalendarConnected = calendarStatus?.connected === true
   const isJiraConnected = jiraStatus?.connected === true
   const isNotionConnected = notionStatus?.connected === true
+  const jiraEffectiveProjectKey = jiraSelectedProjectKey ?? jiraStatus?.project_key ?? null
 
   return (
     <>
@@ -329,7 +381,7 @@ export function IntegrationsPage() {
               const loading =
                 (isSlack && (slackLoading || connectingId === 'slack')) ||
                 (isCalendar && (calendarLoading || connectingId === 'calendar')) ||
-                (isJira && (jiraLoading || connectingId === 'jira')) ||
+                (isJira && (jiraLoading || jiraProjectsLoading || jiraSavingProject || connectingId === 'jira')) ||
                 (isNotion && (notionLoading || connectingId === 'notion'))
 
               const connectedSubtitle = isSlack
@@ -386,6 +438,77 @@ export function IntegrationsPage() {
                         )}
                       </h4>
                       <p>{integration.description}</p>
+
+                      {isJira && connected && (
+                        <div>
+                          <div className="actions-executor-param">
+                            <div className="actions-executor-param-key">Default project</div>
+                            <div className="actions-executor-param-value">
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <select
+                                  className="actions-select jira-project-select"
+                                  value={jiraEffectiveProjectKey ?? ''}
+                                  disabled={
+                                    jiraProjectsLoading || jiraSavingProject || jiraLoading || connectingId === 'jira'
+                                  }
+                                  onChange={(e) => {
+                                    const next = e.target.value
+                                    setJiraSelectedProjectKey(next ? next : null)
+                                  }}
+                                >
+                                  {jiraProjectsLoading ? (
+                                    <option value="" disabled>
+                                      Loading projects…
+                                    </option>
+                                  ) : jiraProjects && jiraProjects.length > 0 ? (
+                                    <>
+                                      <option value="" disabled>
+                                        Select a project
+                                      </option>
+                                      {jiraProjects.map((p) => (
+                                        <option key={p.key} value={p.key}>
+                                          {p.name} ({p.key})
+                                        </option>
+                                      ))}
+                                      {jiraEffectiveProjectKey &&
+                                        !jiraProjects.some((p) => p.key === jiraEffectiveProjectKey) && (
+                                          <option value={jiraEffectiveProjectKey}>
+                                            {jiraEffectiveProjectKey} (saved)
+                                          </option>
+                                        )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {jiraEffectiveProjectKey ? (
+                                        <option value={jiraEffectiveProjectKey}>
+                                          {jiraEffectiveProjectKey} (saved)
+                                        </option>
+                                      ) : (
+                                        <option value="" disabled>No projects available</option>
+                                      )}
+                                    </>
+                                  )}
+                                </select>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-primary jira-project-save-btn"
+                                  onClick={handleSaveJiraProject}
+                                  disabled={
+                                    jiraProjectsLoading ||
+                                    jiraSavingProject ||
+                                    jiraLoading ||
+                                    !jiraEffectiveProjectKey ||
+                                    connectingId === 'jira'
+                                  }
+                                >
+                                  {jiraSavingProject ? 'Saving…' : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="actions-executor-card-actions">
                       {isImplemented ? (
